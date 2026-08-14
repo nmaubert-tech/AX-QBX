@@ -56,7 +56,7 @@
         }
     }
 
-    function getCurrentUser(appToken) {
+    function getCurrentUserProfile(appToken) {
         return request({
             url: "/db/main?a=API_GetUserInfo&" + tokenPair(appToken),
             eventName: "quickbase.user.failed",
@@ -64,10 +64,34 @@
         }).then(function (result) {
             var $ = requireJQuery();
             assertQuickbaseSuccess(result.data, "API_GetUserInfo");
-            var id = $(result.data).find("user").attr("id");
+            var user = $(result.data).find("user").first();
+            var id = user.attr("id");
             if (!id) { throw new Error("Quickbase user response did not include a user id."); }
-            return id;
+
+            function value(selectors) {
+                var node = user.find(selectors).first();
+                return $.trim(node.text() || "");
+            }
+
+            var firstName = value("firstName, firstname, first_name");
+            var lastName = value("lastName, lastname, last_name");
+            var screenName = value("screenName, screenname, screen_name");
+            var email = value("email");
+            var name = $.trim((firstName + " " + lastName).replace(/\s+/g, " ")) || screenName || email || id;
+
+            return {
+                id: id,
+                name: name,
+                firstName: firstName,
+                lastName: lastName,
+                screenName: screenName,
+                email: email
+            };
         });
+    }
+
+    function getCurrentUser(appToken) {
+        return getCurrentUserProfile(appToken).then(function (profile) { return profile.id; });
     }
 
     function getAppTables(appDbid, appToken) {
@@ -138,6 +162,7 @@
     global.AxialQB.quickbase = {
         request: request,
         getCurrentUser: getCurrentUser,
+        getCurrentUserProfile: getCurrentUserProfile,
         getAppTables: getAppTables,
         doQuery: doQuery,
         importCsv: importCsv
