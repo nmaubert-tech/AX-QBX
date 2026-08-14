@@ -1,4 +1,24 @@
-/* Timesheet mobile horizontal-scroll refinements */
+/* Timesheet responsive horizontal-scroll refinements */
+
+/* Totals rail: preserve the same structural grouping as the main grid.
+   Code + label read as one frozen identity area; the strong divider belongs
+   between Saturday and Remaining. Remaining and Total stay one summary block. */
+.ts-daily-totals .ts-footer-code{
+  border-right:0!important;
+}
+.ts-daily-totals .ts-footer-label{
+  border-left:0!important;
+}
+.ts-daily-totals td.ts-col-budget{
+  background:inherit!important;
+  border-left:2px solid #9da8b1!important;
+  border-right:0!important;
+}
+.ts-daily-totals td.ts-col-total,
+.ts-daily-totals .week-total{
+  border-left:0!important;
+}
+
 @media (max-width:900px){
   :root{
     --ts-code-width:clamp(76px,18vw,90px);
