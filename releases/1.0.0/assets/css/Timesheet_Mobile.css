@@ -1,50 +1,115 @@
 /* Timesheet responsive horizontal-scroll refinements */
 
+/* Card headers belong to the card, not the viewport. The bar spans the same
+   width as its card/table while the visible title and count remain anchored
+   during horizontal scrolling. */
+.project-card__header{
+  width:100%!important;
+  max-width:none!important;
+  position:relative!important;
+}
+.project-card__title{
+  position:sticky;
+  left:10px;
+  z-index:2;
+}
+.project-card__count{
+  position:sticky;
+  right:10px;
+  z-index:2;
+  float:right;
+}
+
 /* Totals rail: preserve the same structural grouping as the main grid.
    Code + label read as one frozen identity area; the strong divider belongs
    between Saturday and Remaining. Remaining and Total stay one summary block. */
-.ts-daily-totals .ts-footer-code{
-  border-right:0!important;
-}
-.ts-daily-totals .ts-footer-label{
-  border-left:0!important;
-}
+.ts-daily-totals .ts-footer-code{border-right:0!important}
+.ts-daily-totals .ts-footer-label{border-left:0!important}
 .ts-daily-totals td.ts-col-budget{
   background:inherit!important;
   border-left:2px solid #9da8b1!important;
   border-right:0!important;
 }
 .ts-daily-totals td.ts-col-total,
-.ts-daily-totals .week-total{
-  border-left:0!important;
+.ts-daily-totals .week-total{border-left:0!important}
+
+/* Compact desktop / narrow laptop. Do not switch to the phone geometry just
+   because browser zoom or a narrow window drops below the old 900px breakpoint. */
+@media (min-width:761px) and (max-width:1150px){
+  :root{
+    --ax-nav-height:56px;
+    --ts-code-width:84px;
+    --ts-task-width:210px;
+    --ts-day-width:clamp(74px,calc((100vw - 438px) / 7),96px);
+    --ts-budget-width:60px;
+    --ts-total-width:60px;
+  }
+  .ts-nav{
+    height:var(--ax-nav-height)!important;
+    display:flex!important;
+    align-items:center!important;
+    padding:0 10px!important;
+    gap:8px!important;
+    overflow:hidden!important;
+  }
+  .ts-nav__primary,.ts-nav__controls,.ts-nav__actions{
+    grid-column:auto!important;
+    grid-row:auto!important;
+  }
+  .ts-nav__primary{flex:0 0 auto!important}
+  .ts-nav__controls{
+    display:flex!important;
+    flex:1 1 auto!important;
+    width:auto!important;
+    min-width:0!important;
+    gap:5px!important;
+  }
+  .ts-nav__actions{display:flex!important;margin-left:auto!important}
+  .status-bar{top:var(--ax-nav-height)!important}
+  .ts-main{top:calc(var(--ax-nav-height) + var(--ax-status-height))!important;padding:0 10px!important;scroll-snap-type:none!important}
+  .resource-nav{display:block!important;max-width:180px!important}
+  .resource-nav select{max-width:180px!important}
+  .ts-nav input[type=search]{min-width:130px!important;max-width:180px!important}
+  .ts-col-code{width:var(--ts-code-width)!important;min-width:var(--ts-code-width)!important}
+  .ts-col-task{width:var(--ts-task-width)!important;min-width:var(--ts-task-width)!important}
+  .ts-col-day{width:var(--ts-day-width)!important;min-width:var(--ts-day-width)!important}
+  .ts-col-budget{width:var(--ts-budget-width)!important;min-width:var(--ts-budget-width)!important}
+  .ts-col-total{width:var(--ts-total-width)!important;min-width:var(--ts-total-width)!important}
+  #timesheet-container,.ts-week-header,.ts-daily-totals,
+  .ts-week-header table,.timesheet-grid,.ts-daily-totals table{
+    min-width:calc(var(--ts-code-width) + var(--ts-task-width) + (7 * var(--ts-day-width)) + var(--ts-budget-width) + var(--ts-total-width))!important;
+  }
+  .hours{width:50px!important}
+  .note-btn{width:21px!important;height:23px!important}
+  .project-card{border-left:1px solid var(--ax-border)!important;border-radius:var(--ax-radius)!important}
+  .project-card__header{border-radius:0!important}
+  #timesheet-daily-totals{left:10px!important;right:10px!important}
 }
 
-@media (max-width:900px){
+/* Phone/tablet working mode: frozen identity pane + one useful day width. */
+@media (max-width:760px){
   :root{
-    --ts-code-width:clamp(76px,18vw,90px);
-    --ts-task-width:clamp(165px,40vw,205px);
-    --ts-day-width:clamp(145px,calc(100vw - var(--ts-code-width) - var(--ts-task-width) - 8px),210px);
+    --ts-code-width:clamp(76px,20vw,90px);
+    --ts-task-width:clamp(165px,43vw,205px);
+    --ts-day-width:clamp(145px,calc(100vw - var(--ts-code-width) - var(--ts-task-width) - 8px),180px);
     --ts-budget-width:calc(var(--ts-day-width) * .5);
     --ts-total-width:calc(var(--ts-day-width) * .5);
   }
   .ts-col-budget{width:var(--ts-budget-width)!important;min-width:var(--ts-budget-width)!important}
   .ts-col-total{width:var(--ts-total-width)!important;min-width:var(--ts-total-width)!important}
-  .ts-main{
-    scroll-padding-left:calc(var(--ts-code-width) + var(--ts-task-width));
-  }
+  .ts-main{scroll-padding-left:calc(var(--ts-code-width) + var(--ts-task-width))}
   .ts-col-day{scroll-snap-align:none!important}
   .ts-week-header th.ts-col-day,
   .ts-week-header th.ts-col-budget,
-  .ts-week-header th.ts-col-total{
-    scroll-snap-align:start;
-  }
-  #timesheet-container,.ts-week-header,.ts-daily-totals{
-    min-width:calc(var(--ts-code-width) + var(--ts-task-width) + (7 * var(--ts-day-width)) + var(--ts-budget-width) + var(--ts-total-width))!important;
-  }
+  .ts-week-header th.ts-col-total{scroll-snap-align:start}
+  #timesheet-container,.ts-week-header,.ts-daily-totals,
   .ts-week-header table,.timesheet-grid,.ts-daily-totals table{
     min-width:calc(var(--ts-code-width) + var(--ts-task-width) + (7 * var(--ts-day-width)) + var(--ts-budget-width) + var(--ts-total-width))!important;
   }
+  .project-card__title{left:8px}
+  .project-card__count{right:8px}
 }
+
 @media (max-width:560px){
   :root{
     --ts-code-width:76px;
