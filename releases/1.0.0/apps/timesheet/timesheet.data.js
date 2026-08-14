@@ -5,9 +5,18 @@
     function num(value) { var n = parseFloat(value); return isNaN(n) ? 0 : n; }
     function qbDate(value) {
         if (!value) { return null; }
-        if (/^\d+$/.test(String(value))) { return new Date(parseInt(value, 10)); }
-        var d = new Date(value);
-        return isNaN(d.getTime()) ? null : d;
+        var d;
+        if (/^\d+$/.test(String(value))) {
+            d = new Date(parseInt(value, 10));
+            if (isNaN(d.getTime())) { return null; }
+            d = new Date(d.getTime() + (d.getTimezoneOffset() * 60000));
+            d.setHours(0,0,0,0);
+            return d;
+        }
+        d = new Date(value);
+        if (isNaN(d.getTime())) { return null; }
+        d.setHours(0,0,0,0);
+        return d;
     }
     function alias(name) {
         if (!global.aliasMap || !global.aliasMap[name]) { throw new Error("Missing Quickbase alias: " + name); }
@@ -51,7 +60,6 @@
         return global.AxialQB.quickbase.doQuery({ dbid: alias(c.tableAliases.timeEntries), appToken:c.appToken, query:query, clist:clist, slist:e.task, eventName:"timesheet.entries.failed" }).then(function (result) {
             global.jQuery(result.data).find("record").each(function () {
                 var taskId = f(this,e.task), date = qbDate(f(this,e.date));
-                if (date) { date.setHours(0,0,0,0); }
                 if (!entries[taskId]) { entries[taskId] = []; }
                 entries[taskId].push({ id:f(this,e.id), taskId:taskId, standardHours:f(this,e.standardHours), standardNote:f(this,e.standardNote), overtimeHours:f(this,e.overtimeHours), internalComment:f(this,e.internalComment), date:date, approved:f(this,e.approved)==="1", payrollApproved:f(this,e.payrollApproved)==="1", dirty:false });
             });
