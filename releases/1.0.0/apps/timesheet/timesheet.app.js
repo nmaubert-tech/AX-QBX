@@ -18,7 +18,11 @@ function initializeAliases(){
     if(typeof global.getAppIds!=="function"){
         throw new Error("Quickbase getAppIds utility is not available.");
     }
-    global.getAppIds(config.appToken);
+    global.apptoken=config.appToken||global.apptoken||"";
+    if(!global.apptoken){
+        throw new Error("Quickbase application token was not supplied by TimesheetPrivateConfig.js.");
+    }
+    global.getAppIds(global.apptoken);
     if(!global.aliasMap||!global.aliasMap[config.tableAliases.tasks]||!global.aliasMap[config.tableAliases.timeEntries]){
         throw new Error("Quickbase table aliases could not be resolved.");
     }
