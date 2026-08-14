@@ -1,0 +1,34 @@
+/* Timesheet mobile horizontal-scroll refinements */
+@media (max-width:900px){
+  :root{
+    --ts-code-width:clamp(76px,18vw,90px);
+    --ts-task-width:clamp(165px,40vw,205px);
+    --ts-day-width:clamp(145px,calc(100vw - var(--ts-code-width) - var(--ts-task-width) - 8px),210px);
+    --ts-budget-width:calc(var(--ts-day-width) * .5);
+    --ts-total-width:calc(var(--ts-day-width) * .5);
+  }
+  .ts-col-budget{width:var(--ts-budget-width)!important;min-width:var(--ts-budget-width)!important}
+  .ts-col-total{width:var(--ts-total-width)!important;min-width:var(--ts-total-width)!important}
+  .ts-main{
+    scroll-padding-left:calc(var(--ts-code-width) + var(--ts-task-width));
+  }
+  .ts-col-day{scroll-snap-align:none!important}
+  .ts-week-header th.ts-col-day,
+  .ts-week-header th.ts-col-budget,
+  .ts-week-header th.ts-col-total{
+    scroll-snap-align:start;
+  }
+  #timesheet-container,.ts-week-header,.ts-daily-totals{
+    min-width:calc(var(--ts-code-width) + var(--ts-task-width) + (7 * var(--ts-day-width)) + var(--ts-budget-width) + var(--ts-total-width))!important;
+  }
+  .ts-week-header table,.timesheet-grid,.ts-daily-totals table{
+    min-width:calc(var(--ts-code-width) + var(--ts-task-width) + (7 * var(--ts-day-width)) + var(--ts-budget-width) + var(--ts-total-width))!important;
+  }
+}
+@media (max-width:560px){
+  :root{
+    --ts-code-width:76px;
+    --ts-task-width:165px;
+    --ts-day-width:clamp(145px,calc(100vw - 249px),180px);
+  }
+}
