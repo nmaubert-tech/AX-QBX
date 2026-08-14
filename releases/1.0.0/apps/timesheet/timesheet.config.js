@@ -5,15 +5,12 @@
     var environment = pageConfig.timesheetEnvironment || global.AXIAL_TIMESHEET_ENV || {};
 
     function requireObject(name, value) {
-        if (!value || typeof value !== "object") {
-            throw new Error("Missing Timesheet runtime configuration: " + name);
-        }
+        if (!value || typeof value !== "object") { throw new Error("Missing Timesheet runtime configuration: " + name); }
         return value;
     }
 
     var tableAliases = requireObject("tableAliases", environment.tableAliases);
     var fields = requireObject("fields", environment.fields);
-
     requireObject("fields.tasks", fields.tasks);
     requireObject("fields.entries", fields.entries);
     requireObject("fields.resources", fields.resources);
@@ -26,6 +23,7 @@
         hourIncrement: Number(environment.hourIncrement || 0.25),
         overheadTypes: environment.overheadTypes || ["Overhead"],
         tableAliases: tableAliases,
+        tableDbids: environment.tableDbids || null,
         fields: fields,
         taskSortFields: environment.taskSortFields || [],
         images: environment.images || {
