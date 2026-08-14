@@ -26,7 +26,7 @@
 .ts-daily-totals .ts-footer-code{border-right:0!important}
 .ts-daily-totals .ts-footer-label{border-left:0!important}
 .ts-daily-totals td.ts-col-budget{
-  background:inherit!important;
+  background:#343a40!important;
   border-left:2px solid #9da8b1!important;
   border-right:0!important;
 }
