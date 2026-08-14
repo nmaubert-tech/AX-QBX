@@ -47,17 +47,27 @@
         return TOKEN_KEY + "=" + encodeURIComponent(value || "");
     }
 
+    function requireVeilSun() {
+        if (!global.QUICKBASE) {
+            throw new Error("VeilSun Quickbase utilities are not available.");
+        }
+        return global.QUICKBASE;
+    }
+
     function getCurrentUser(appToken) {
-        return request({
-            url: "/db/main?a=API_GetUserInfo&" + tokenPair(appToken),
-            eventName: "quickbase.user.failed",
-            errorMessage: "Unable to resolve the logged-in Quickbase user"
-        }).then(function (result) {
-            var $ = requireJQuery();
-            var id = $(result.data).find("user").attr("id");
-            if (!id) { throw new Error("Quickbase user response did not include a user id."); }
-            return id;
-        });
+        var qb = requireVeilSun();
+        if (typeof qb.getCurrentUserID !== "function") {
+            throw new Error("VeilSun getCurrentUserID is not available.");
+        }
+        return Promise.resolve(qb.getCurrentUserID(appToken));
+    }
+
+    function getAppTables(appToken) {
+        var qb = requireVeilSun();
+        if (typeof qb.getAppTables !== "function") {
+            throw new Error("VeilSun getAppTables is not available.");
+        }
+        return Promise.resolve(qb.getAppTables(appToken));
     }
 
     function doQuery(params) {
@@ -103,6 +113,7 @@
     global.AxialQB.quickbase = {
         request: request,
         getCurrentUser: getCurrentUser,
+        getAppTables: getAppTables,
         doQuery: doQuery,
         importCsv: importCsv
     };
