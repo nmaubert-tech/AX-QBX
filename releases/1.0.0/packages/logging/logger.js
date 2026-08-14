@@ -114,6 +114,7 @@
         warn: function (eventName, message, details) { return record("warn", eventName, message, details); },
         error: function (eventName, message, details) { return record("error", eventName, message, details); },
         getRecords: readStored,
+        getEntries: readStored,
         clear: function () { writeStored([]); },
         exportPackage: exportPackage,
         download: download,
