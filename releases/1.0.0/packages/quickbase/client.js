@@ -47,6 +47,15 @@
         return TOKEN_KEY + "=" + encodeURIComponent(value || "");
     }
 
+    function assertQuickbaseSuccess(xml, operation) {
+        var $ = requireJQuery();
+        var errcode = String($(xml).find("errcode").first().text() || "0");
+        if (errcode !== "0") {
+            var errtext = $(xml).find("errtext").first().text() || "Unknown Quickbase error";
+            throw new Error(operation + " failed (" + errcode + "): " + errtext);
+        }
+    }
+
     function getCurrentUser(appToken) {
         return request({
             url: "/db/main?a=API_GetUserInfo&" + tokenPair(appToken),
@@ -54,9 +63,29 @@
             errorMessage: "Unable to resolve the logged-in Quickbase user"
         }).then(function (result) {
             var $ = requireJQuery();
+            assertQuickbaseSuccess(result.data, "API_GetUserInfo");
             var id = $(result.data).find("user").attr("id");
             if (!id) { throw new Error("Quickbase user response did not include a user id."); }
             return id;
+        });
+    }
+
+    function getAppTables(appDbid, appToken) {
+        if (!appDbid) { return Promise.reject(new Error("Quickbase application DBID is not available.")); }
+        return request({
+            url: "/db/" + encodeURIComponent(appDbid) + "?a=API_GetSchema&" + tokenPair(appToken),
+            eventName: "quickbase.schema.failed",
+            errorMessage: "Unable to resolve Quickbase table DBIDs"
+        }).then(function (result) {
+            var $ = requireJQuery();
+            assertQuickbaseSuccess(result.data, "API_GetSchema");
+            var aliases = {};
+            $(result.data).find("chdbid").each(function () {
+                var name = $(this).attr("name");
+                var dbid = $.trim($(this).text());
+                if (name && dbid) { aliases[name] = dbid; }
+            });
+            return aliases;
         });
     }
 
@@ -75,6 +104,9 @@
             url: "/db/" + params.dbid + "?" + query.join("&"),
             eventName: params.eventName || "quickbase.query.failed",
             errorMessage: params.errorMessage || "Quickbase query failed"
+        }).then(function (result) {
+            assertQuickbaseSuccess(result.data, "API_DoQuery");
+            return result;
         });
     }
 
@@ -96,6 +128,9 @@
             headers: { "QUICKBASE-ACTION": "API_ImportFromCSV" },
             eventName: params.eventName || "quickbase.import.failed",
             errorMessage: params.errorMessage || "Quickbase CSV import failed"
+        }).then(function (result) {
+            assertQuickbaseSuccess(result.data, "API_ImportFromCSV");
+            return result;
         });
     }
 
@@ -103,6 +138,7 @@
     global.AxialQB.quickbase = {
         request: request,
         getCurrentUser: getCurrentUser,
+        getAppTables: getAppTables,
         doQuery: doQuery,
         importCsv: importCsv
     };
