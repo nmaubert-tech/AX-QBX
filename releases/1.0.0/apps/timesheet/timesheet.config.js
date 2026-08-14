@@ -18,9 +18,17 @@
     requireObject("fields.entries", fields.entries);
     requireObject("fields.resources", fields.resources);
 
+    /*
+     * VeilSun's legacy getAppIds() helper used by the proven R3 timesheet
+     * expects a global `apptoken` variable. The value still originates only
+     * from the Quickbase-private TimesheetPrivateConfig.js page; it is not
+     * embedded in this public runtime.
+     */
+    global.apptoken = environment.appToken || "";
+
     global.AxialTimesheetConfig = {
         version: pageConfig.version || "1.0.0",
-        appToken: environment.appToken || "",
+        appToken: global.apptoken,
         weekRange: environment.weekRange || { past: 4, future: 2 },
         maxDailyHours: Number(environment.maxDailyHours || 8),
         hourIncrement: Number(environment.hourIncrement || 0.25),
