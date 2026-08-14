@@ -2,6 +2,7 @@
     "use strict";
 
     var TOKEN_KEY = "app" + "token";
+    var SCHEMA_CACHE_PREFIX = "axial.qb.schema.v1.";
 
     function requireJQuery() {
         if (!global.jQuery) { throw new Error("AxialQB Quickbase client requires jQuery."); }
@@ -21,20 +22,10 @@
                 contentType: options.contentType,
                 headers: options.headers || {},
                 timeout: options.timeout || 45000,
-                success: function (data, textStatus, xhr) {
-                    resolve({ data: data, textStatus: textStatus, xhr: xhr });
-                },
+                success: function (data, textStatus, xhr) { resolve({ data: data, textStatus: textStatus, xhr: xhr }); },
                 error: function (xhr, textStatus, errorThrown) {
-                    var details = {
-                        status: xhr && xhr.status,
-                        statusText: xhr && xhr.statusText,
-                        textStatus: textStatus,
-                        errorThrown: String(errorThrown || ""),
-                        responseText: xhr && xhr.responseText ? String(xhr.responseText).slice(0, 2000) : ""
-                    };
-                    if (global.AxialQB && global.AxialQB.logger) {
-                        global.AxialQB.logger.error(options.eventName || "quickbase.request.failed", options.errorMessage || "Quickbase request failed", details);
-                    }
+                    var details = { status: xhr && xhr.status, statusText: xhr && xhr.statusText, textStatus: textStatus, errorThrown: String(errorThrown || ""), responseText: xhr && xhr.responseText ? String(xhr.responseText).slice(0, 2000) : "" };
+                    if (global.AxialQB && global.AxialQB.logger) { global.AxialQB.logger.error(options.eventName || "quickbase.request.failed", options.errorMessage || "Quickbase request failed", details); }
                     var error = new Error(options.errorMessage || "Quickbase request failed");
                     error.details = details;
                     reject(error);
@@ -43,128 +34,71 @@
         });
     }
 
-    function tokenPair(value) {
-        return TOKEN_KEY + "=" + encodeURIComponent(value || "");
-    }
+    function tokenPair(value) { return TOKEN_KEY + "=" + encodeURIComponent(value || ""); }
 
     function assertQuickbaseSuccess(xml, operation) {
         var $ = requireJQuery();
         var errcode = String($(xml).find("errcode").first().text() || "0");
-        if (errcode !== "0") {
-            var errtext = $(xml).find("errtext").first().text() || "Unknown Quickbase error";
-            throw new Error(operation + " failed (" + errcode + "): " + errtext);
-        }
+        if (errcode !== "0") { throw new Error(operation + " failed (" + errcode + "): " + ($(xml).find("errtext").first().text() || "Unknown Quickbase error")); }
     }
 
     function getCurrentUserProfile(appToken) {
-        return request({
-            url: "/db/main?a=API_GetUserInfo&" + tokenPair(appToken),
-            eventName: "quickbase.user.failed",
-            errorMessage: "Unable to resolve the logged-in Quickbase user"
-        }).then(function (result) {
+        return request({ url: "/db/main?a=API_GetUserInfo&" + tokenPair(appToken), eventName: "quickbase.user.failed", errorMessage: "Unable to resolve the logged-in Quickbase user" }).then(function (result) {
             var $ = requireJQuery();
             assertQuickbaseSuccess(result.data, "API_GetUserInfo");
             var user = $(result.data).find("user").first();
             var id = user.attr("id");
             if (!id) { throw new Error("Quickbase user response did not include a user id."); }
-
-            function value(selectors) {
-                var node = user.find(selectors).first();
-                return $.trim(node.text() || "");
-            }
-
+            function value(selectors) { return $.trim(user.find(selectors).first().text() || ""); }
             var firstName = value("firstName, firstname, first_name");
             var lastName = value("lastName, lastname, last_name");
             var screenName = value("screenName, screenname, screen_name");
             var email = value("email");
             var name = $.trim((firstName + " " + lastName).replace(/\s+/g, " ")) || screenName || email || id;
-
-            return {
-                id: id,
-                name: name,
-                firstName: firstName,
-                lastName: lastName,
-                screenName: screenName,
-                email: email
-            };
+            return { id: id, name: name, firstName: firstName, lastName: lastName, screenName: screenName, email: email };
         });
     }
 
-    function getCurrentUser(appToken) {
-        return getCurrentUserProfile(appToken).then(function (profile) { return profile.id; });
+    function getCurrentUser(appToken) { return getCurrentUserProfile(appToken).then(function (profile) { return profile.id; }); }
+
+    function readSchemaCache(appDbid) {
+        try { var raw = global.sessionStorage.getItem(SCHEMA_CACHE_PREFIX + appDbid); return raw ? JSON.parse(raw) : null; }
+        catch (e) { return null; }
     }
 
-    function getAppTables(appDbid, appToken) {
+    function writeSchemaCache(appDbid, aliases) {
+        try { global.sessionStorage.setItem(SCHEMA_CACHE_PREFIX + appDbid, JSON.stringify(aliases)); }
+        catch (e) { /* optional cache */ }
+    }
+
+    function getAppTables(appDbid, appToken, suppliedTables) {
+        if (suppliedTables && typeof suppliedTables === "object" && Object.keys(suppliedTables).length) { return Promise.resolve(suppliedTables); }
         if (!appDbid) { return Promise.reject(new Error("Quickbase application DBID is not available.")); }
-        return request({
-            url: "/db/" + encodeURIComponent(appDbid) + "?a=API_GetSchema&" + tokenPair(appToken),
-            eventName: "quickbase.schema.failed",
-            errorMessage: "Unable to resolve Quickbase table DBIDs"
-        }).then(function (result) {
+        var cached = readSchemaCache(appDbid);
+        if (cached && Object.keys(cached).length) { return Promise.resolve(cached); }
+        return request({ url: "/db/" + encodeURIComponent(appDbid) + "?a=API_GetSchema&" + tokenPair(appToken), eventName: "quickbase.schema.failed", errorMessage: "Unable to resolve Quickbase table DBIDs" }).then(function (result) {
             var $ = requireJQuery();
             assertQuickbaseSuccess(result.data, "API_GetSchema");
             var aliases = {};
-            $(result.data).find("chdbid").each(function () {
-                var name = $(this).attr("name");
-                var dbid = $.trim($(this).text());
-                if (name && dbid) { aliases[name] = dbid; }
-            });
+            $(result.data).find("chdbid").each(function () { var name = $(this).attr("name"), dbid = $.trim($(this).text()); if (name && dbid) { aliases[name] = dbid; } });
+            writeSchemaCache(appDbid, aliases);
             return aliases;
         });
     }
 
     function doQuery(params) {
-        var query = [
-            "a=API_DoQuery",
-            "query=" + encodeURIComponent(params.query || ""),
-            tokenPair(params.appToken),
-            "clist=" + encodeURIComponent(params.clist || ""),
-            "useFids=1",
-            "rand=" + Math.random()
-        ];
+        var query = ["a=API_DoQuery", "query=" + encodeURIComponent(params.query || ""), tokenPair(params.appToken), "clist=" + encodeURIComponent(params.clist || ""), "useFids=1", "rand=" + Math.random()];
         if (params.slist) { query.push("slist=" + encodeURIComponent(params.slist)); }
         if (params.options) { query.push("options=" + encodeURIComponent(params.options)); }
-        return request({
-            url: "/db/" + params.dbid + "?" + query.join("&"),
-            eventName: params.eventName || "quickbase.query.failed",
-            errorMessage: params.errorMessage || "Quickbase query failed"
-        }).then(function (result) {
-            assertQuickbaseSuccess(result.data, "API_DoQuery");
-            return result;
-        });
+        return request({ url: "/db/" + params.dbid + "?" + query.join("&"), eventName: params.eventName || "quickbase.query.failed", errorMessage: params.errorMessage || "Quickbase query failed" }).then(function (result) { assertQuickbaseSuccess(result.data, "API_DoQuery"); return result; });
     }
 
     function importCsv(params) {
         var tokenTag = "<" + TOKEN_KEY + ">" + (params.appToken || "") + "</" + TOKEN_KEY + ">";
-        var xml = "<qdbapi>"
-            + "<records_csv><![CDATA[" + (params.csv || "") + "]]></records_csv>"
-            + "<clist>" + params.clist + "</clist>"
-            + "<skipfirst>0</skipfirst>"
-            + tokenTag
-            + "</qdbapi>";
-        return request({
-            method: "POST",
-            url: "/db/" + params.dbid,
-            data: xml,
-            dataType: "xml",
-            processData: false,
-            contentType: "text/xml",
-            headers: { "QUICKBASE-ACTION": "API_ImportFromCSV" },
-            eventName: params.eventName || "quickbase.import.failed",
-            errorMessage: params.errorMessage || "Quickbase CSV import failed"
-        }).then(function (result) {
-            assertQuickbaseSuccess(result.data, "API_ImportFromCSV");
-            return result;
-        });
+        var xml = "<qdbapi><records_csv><![CDATA[" + (params.csv || "") + "]]></records_csv><clist>" + params.clist + "</clist><skipfirst>0</skipfirst>" + tokenTag + "</qdbapi>";
+        return request({ method: "POST", url: "/db/" + params.dbid, data: xml, dataType: "xml", processData: false, contentType: "text/xml", headers: { "QUICKBASE-ACTION": "API_ImportFromCSV" }, eventName: params.eventName || "quickbase.import.failed", errorMessage: params.errorMessage || "Quickbase CSV import failed" }).then(function (result) { assertQuickbaseSuccess(result.data, "API_ImportFromCSV"); return result; });
     }
 
     global.AxialQB = global.AxialQB || {};
-    global.AxialQB.quickbase = {
-        request: request,
-        getCurrentUser: getCurrentUser,
-        getCurrentUserProfile: getCurrentUserProfile,
-        getAppTables: getAppTables,
-        doQuery: doQuery,
-        importCsv: importCsv
-    };
+    global.AxialQB.quickbase = { request: request, getCurrentUser: getCurrentUser, getCurrentUserProfile: getCurrentUserProfile, getAppTables: getAppTables, doQuery: doQuery, importCsv: importCsv };
 }(window));
