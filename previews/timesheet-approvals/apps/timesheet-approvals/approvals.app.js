@@ -3,6 +3,31 @@
 
     var $ = global.jQuery;
     var config = global.AxialTimesheetApprovalsConfig;
+
+    function bootstrapFailure(message) {
+        var root = global.document && global.document.getElementById("timesheet-container");
+        var loading = global.document && global.document.getElementById("loadingState");
+        var user = global.document && global.document.getElementById("statusApprovalUser");
+        if (loading) { loading.style.display = "none"; loading.textContent = ""; }
+        if (user) { user.textContent = "Load failed"; }
+        if (root) { root.innerHTML = "<div class='error-state'>Timesheet Approvals failed to initialize. " + String(message || "Unknown bootstrap error") + "</div>"; }
+        if (global.console && global.console.error) { global.console.error("[Timesheet Approvals bootstrap]", message); }
+    }
+
+    if (!$) { bootstrapFailure("jQuery is not available."); return; }
+    if (!global.AxialQB || !global.AxialQB.context || !global.AxialQB.logger || !global.AxialQB.quickbase) {
+        bootstrapFailure("Shared Axial Quickbase runtime packages did not initialize.");
+        return;
+    }
+    if (!config) {
+        bootstrapFailure("Timesheet Approvals configuration did not initialize. Check TimesheetPrivateConfig.js and the approval field mapping.");
+        return;
+    }
+    if (!global.AxialTimesheetApprovalsData || !global.AxialTimesheetApprovalsView) {
+        bootstrapFailure("Timesheet Approvals data/view modules did not initialize.");
+        return;
+    }
+
     var context = global.AxialQB.context.create({ application: "timesheet-approvals", version: config.version, allowedModes: ["project", "payroll"], mode: "project" });
     var state = { config: config, context: context, user: null, periods: [], currentIndex: 0, view: "project", entries: [], selected: {}, isPayrollApprover: false };
 
@@ -46,7 +71,7 @@
         }).catch(function (error) {
             setBusy("");
             logger().error("timesheet.approvals.load.failed", error.message, error.details || {});
-            $("#timesheet-container").html("<div class='error-state'>Timesheet approvals could not be loaded. Correlation ID: " + context.correlationId + "</div>");
+            $("#timesheet-container").html("<div class='error-state'>Timesheet approvals could not be loaded. " + String(error.message || "") + " Correlation ID: " + context.correlationId + "</div>");
         });
     }
 
@@ -131,7 +156,7 @@
         }).catch(function (error) {
             setBusy("");
             logger().error("timesheet.approvals.bootstrap.failed", error.message, error.details || {});
-            $("#timesheet-container").html("<div class='error-state'>Timesheet approvals could not initialize. Correlation ID: " + context.correlationId + "</div>");
+            $("#timesheet-container").html("<div class='error-state'>Timesheet approvals could not initialize. " + String(error.message || "") + " Correlation ID: " + context.correlationId + "</div>");
         });
     }
 
