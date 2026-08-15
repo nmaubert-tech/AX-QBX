@@ -3,8 +3,8 @@
   "version": "1.0.0-preview",
   "sourceRepository": "nmaubert-tech/QB-Extensions",
   "sourceBranch": "feature/shared-timesheet-foundation",
-  "sourceCommit": "ca8f1cae067d9065b611b95f91107928184bc317",
+  "sourceCommit": "b89b256e6d719663243dc5a3bea5ca505d04ca4a",
   "productionRelease": "releases/1.0.0",
   "productionReleaseModified": false,
-  "notes": "Preview runtime for Quickbase validation. Uses the production 1.0.0 shared CSS/core/logger and preview-specific Quickbase client plus Timesheet Approvals modules."
+  "notes": "Preview runtime for Quickbase validation. Hardened bootstrap/config normalization; production 1.0.0 remains unchanged."
 }
