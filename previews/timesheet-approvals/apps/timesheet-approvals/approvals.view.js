@@ -111,6 +111,21 @@
         return html;
     }
 
+    function approvalStatusIcon(entry) {
+        var status = entry.payrollApproved ? "Payroll approved" : (entry.approved ? "PM approved" : "Pending");
+        var kind = entry.payrollApproved ? "is-payroll" : (entry.approved ? "is-pm" : "is-pending");
+        // Semantic icon only: the tooltip/ARIA label carry the complete status.
+        var glyph = entry.payrollApproved
+            ? "<path d='M4 12l5 5L20 6'></path><path d='M4 18l3 3L20 8'></path>"
+            : (entry.approved
+                ? "<path d='M4 12l5 5L20 6'></path>"
+                : "<circle cx='12' cy='12' r='9'></circle><path d='M12 7v5l3 2'></path>");
+        return "<span class='approval-entry-status-icon " + kind + "' role='img' title='" + status +
+            "' aria-label='" + status + "'><svg viewBox='0 0 24 24' width='16' height='16' fill='none' " +
+            "stroke='currentColor' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round' " +
+            "aria-hidden='true'>" + glyph + "</svg></span>";
+    }
+
     function dayCell(state, row, date, index) {
         var key = dateKey(date), entries = row.entries.filter(function (entry) { return dateKey(entry.date) === key; });
         var classes = (index === 0 || index === 6) ? " weekend-col" : "";
@@ -121,18 +136,21 @@
         var html = "<td class='ts-col-day" + classes + "'>";
         entries.forEach(function (entry) {
             var eligible = isEligible(state, entry);
-            html += "<div class='entry-line'>";
-            if (eligible) { html += "<input class='approval-entry-select' type='checkbox' data-entry-id='" + esc(entry.id) + "' " + (state.selected[entry.id] ? "checked" : "") + ">"; }
-            if (entry.standardHours) { html += "<strong>" + entry.standardHours.toFixed(1) + "</strong>"; }
-            if (entry.overtimeHours) { html += " <span class='label label-default'>OT " + entry.overtimeHours.toFixed(1) + "</span>"; }
-            var entryStatus = entry.payrollApproved ? "Payroll approved" : (entry.approved ? "PM approved" : "Pending");
-            var statusClass = entry.payrollApproved ? "is-payroll" : (entry.approved ? "is-pm" : "is-pending");
-            html += " <span class='approval-entry-status " + statusClass + "' title='" + entryStatus + "' aria-label='" + entryStatus + "'>" + entryStatus + "</span>";
+            html += "<div class='approval-entry-block'>";
+            html += "<div class='approval-entry-hours'>";
+            if (entry.standardHours) { html += "<div class='approval-regular-hours'><strong>" + entry.standardHours.toFixed(1) + "</strong><span class='sr-only'> regular hours</span></div>"; }
+            if (entry.overtimeHours) { html += "<div class='approval-overtime-hours'><span>OT</span><strong>" + entry.overtimeHours.toFixed(1) + "</strong></div>"; }
+            html += "</div><div class='approval-entry-actions'>";
+            if (eligible) {
+                html += "<input class='approval-entry-select' type='checkbox' data-entry-id='" + esc(entry.id) +
+                    "' aria-label='Select time entry " + esc(entry.id) + "'" + (state.selected[entry.id] ? " checked" : "") + ">";
+            }
             if (entry.standardNote || entry.internalComment) {
                 var noteIcon = entry.standardNote ? "https://images.quickbase.com/si/16/008-doc_edit.png" : "https://images.quickbase.com/si/16/080-file_message.png";
-                html += " <button type='button' class='note-btn has-note approval-note' data-entry-id='" + esc(entry.id) + "' title='View time entry notes' aria-label='View time entry notes'><img src='" + noteIcon + "' alt=''></button>";
+                html += "<button type='button' class='note-btn has-note approval-note' data-entry-id='" + esc(entry.id) +
+                    "' title='View time entry notes' aria-label='View time entry notes'><img src='" + noteIcon + "' alt=''></button>";
             }
-            html += "</div>";
+            html += approvalStatusIcon(entry) + "</div></div>";
         });
         html += "</td>";
         return html;
