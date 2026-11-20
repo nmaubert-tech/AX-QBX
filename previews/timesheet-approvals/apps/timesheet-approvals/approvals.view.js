@@ -29,6 +29,23 @@
         });
     }
 
+    function eligibleEntries(state, entries) { return entries.filter(function (entry) { return isEligible(state, entry); }); }
+    function setEntriesSelected(state, entries, checked) {
+        eligibleEntries(state, entries).forEach(function (entry) {
+            if (checked) { state.selected[entry.id] = true; }
+            else { delete state.selected[entry.id]; }
+        });
+    }
+    function groupSelection(state, entries, label, className, groupIndex) {
+        var eligible = eligibleEntries(state, entries);
+        if (!eligible.length) { return ""; }
+        var selected = eligible.filter(function (entry) { return !!state.selected[entry.id]; }).length;
+        return "<label class='approval-select-group' title='Select eligible entries in this group'>" +
+            "<input type='checkbox' class='" + className + "' data-group-index='" + groupIndex + "'" +
+            (selected === eligible.length ? " checked" : "") +
+            " aria-label='" + esc(label) + "'><span>" + selected + "/" + eligible.length + " selected</span></label>";
+    }
+
     function groupProjects(entries) {
         var groups = {};
         entries.forEach(function (entry) {
@@ -77,7 +94,12 @@
         html += "<col class='ts-col-code'><col class='ts-col-task'>";
         for (var c = 0; c < 7; c++) { html += "<col class='ts-col-day'>"; }
         html += "<col class='ts-col-budget'><col class='ts-col-total'></colgroup><thead><tr>";
-        html += "<th class='ts-col-code'>Select</th><th class='ts-col-task'>" + (state.view === "payroll" ? "Project / Task" : "Employee / Task") + "</th>";
+        var visible = visibleEntries(state), eligible = eligibleEntries(state, visible);
+        var selected = eligible.filter(function (entry) { return !!state.selected[entry.id]; }).length;
+        html += "<th class='ts-col-code'><label class='approval-select-all-label' title='Select all eligible visible entries'>" +
+            "<input id='approvalSelectAll' type='checkbox' aria-label='Select all eligible visible time entries'" +
+            (eligible.length && selected === eligible.length ? " checked" : "") +
+            (!eligible.length ? " disabled" : "") + "><span>All</span></label></th><th class='ts-col-task'>" + (state.view === "payroll" ? "Project / Task" : "Employee / Task") + "</th>";
         for (var i = 0; i < 7; i++) {
             var d = new Date(p.start); d.setDate(d.getDate() + i);
             var classes = (i === 0 || i === 6) ? " weekend-col" : "";
@@ -103,7 +125,10 @@
             if (eligible) { html += "<input class='approval-entry-select' type='checkbox' data-entry-id='" + esc(entry.id) + "' " + (state.selected[entry.id] ? "checked" : "") + ">"; }
             if (entry.standardHours) { html += "<strong>" + entry.standardHours.toFixed(1) + "</strong>"; }
             if (entry.overtimeHours) { html += " <span class='label label-default'>OT " + entry.overtimeHours.toFixed(1) + "</span>"; }
-            if (entry.standardNote || entry.internalComment) { html += " <button type='button' class='note-btn has-note approval-note' data-entry-id='" + esc(entry.id) + "' title='View notes'>N</button>"; }
+            if (entry.standardNote || entry.internalComment) {
+                var noteIcon = entry.standardNote ? "https://images.quickbase.com/si/16/008-doc_edit.png" : "https://images.quickbase.com/si/16/080-file_message.png";
+                html += " <button type='button' class='note-btn has-note approval-note' data-entry-id='" + esc(entry.id) + "' title='View time entry notes' aria-label='View time entry notes'><img src='" + noteIcon + "' alt=''></button>";
+            }
             html += "</div>";
         });
         html += "</td>";
@@ -135,17 +160,24 @@
         return html;
     }
 
-    function projectCard(state, project) {
-        var html = "<section class='project-card'>";
-        html += "<div class='project-card__header'><strong>" + esc(project.code) + "</strong><span>" + esc(project.description) + " · " + totalHours(project.entries).toFixed(1) + " hrs</span></div>";
+    function projectCard(state, project, index) {
+        var html = "<section class='project-card' data-group-index='" + index + "'>";
+        html += "<div class='project-card__header approval-card-header'><div class='approval-card-identity'>" +
+            groupSelection(state, project.entries, "Select eligible entries for project " + project.code, "approval-group-select", index) +
+            "<strong>" + esc(project.code) + "</strong></div><span class='approval-group-summary'>" +
+            esc(project.description) + " · " + totalHours(project.entries).toFixed(1) + " hrs</span></div>";
         html += tableBody(state, project.entries) + "</section>";
         return html;
     }
 
-    function employeeCard(state, employee) {
+    function employeeCard(state, employee, index) {
         var pmPending = employee.entries.filter(function (entry) { return !entry.approved && !entry.payrollApproved; }).length;
-        var html = "<section class='project-card'>";
-        html += "<div class='project-card__header'><strong>" + esc(employee.resourceName) + "</strong><span>Regular " + regularHours(employee.entries).toFixed(1) + " · OT " + overtimeHours(employee.entries).toFixed(1) + " · " + pmPending + " PM pending</span></div>";
+        var html = "<section class='project-card' data-group-index='" + index + "'>";
+        html += "<div class='project-card__header approval-card-header'><div class='approval-card-identity'>" +
+            groupSelection(state, employee.entries, "Select eligible time for " + employee.resourceName, "approval-group-select", index) +
+            "<strong>" + esc(employee.resourceName) + "</strong></div><span class='approval-group-summary'>Regular " +
+            regularHours(employee.entries).toFixed(1) + " · OT " + overtimeHours(employee.entries).toFixed(1) +
+            " · " + pmPending + " PM pending</span></div>";
         html += tableBody(state, employee.entries) + "</section>";
         return html;
     }
@@ -155,9 +187,9 @@
         if (!entries.length) {
             html += "<div class='empty-state'>No time entries match the current approval view.</div>";
         } else if (state.view === "payroll") {
-            groupEmployees(entries).forEach(function (employee) { html += employeeCard(state, employee); });
+            groupEmployees(entries).forEach(function (employee, index) { html += employeeCard(state, employee, index); });
         } else {
-            groupProjects(entries).forEach(function (project) { html += projectCard(state, project); });
+            groupProjects(entries).forEach(function (project, index) { html += projectCard(state, project, index); });
         }
         $("#timesheet-container").html(html);
         updateStatus(state, entries);
@@ -175,19 +207,30 @@
     }
 
     function bindRendered(state) {
+        $("#approvalSelectAll").off("change.approvals").on("change.approvals", function () {
+            setEntriesSelected(state, visibleEntries(state), this.checked);
+            render(state);
+        });
+        $(".approval-group-select").off("change.approvals").on("change.approvals", function () {
+            var index = Number($(this).attr("data-group-index"));
+            var groups = state.view === "payroll" ? groupEmployees(visibleEntries(state)) : groupProjects(visibleEntries(state));
+            if (groups[index]) { setEntriesSelected(state, groups[index].entries, this.checked); }
+            render(state);
+        });
         $(".approval-entry-select").off("change.approvals").on("change.approvals", function () {
-            state.selected[String($(this).data("entryId"))] = this.checked;
+            var id = String($(this).attr("data-entry-id"));
+            if (this.checked) { state.selected[id] = true; } else { delete state.selected[id]; }
             render(state);
         });
         $(".approval-row-select").off("change.approvals").on("change.approvals", function () {
-            var key = String($(this).data("rowKey")), checked = this.checked;
-            var collections = state.view === "payroll" ? groupEmployees(visibleEntries(state)).map(function (employee) { return employee.entries; }) : groupProjects(visibleEntries(state)).map(function (project) { return project.entries; });
-            collections.forEach(function (entries) {
-                groupRows(entries).forEach(function (row) {
-                    if (row.key !== key) { return; }
-                    row.entries.forEach(function (entry) { if (isEligible(state, entry)) { state.selected[entry.id] = checked; } });
+            var key = String($(this).attr("data-row-key")), checked = this.checked;
+            var index = Number($(this).closest(".project-card").attr("data-group-index"));
+            var groups = state.view === "payroll" ? groupEmployees(visibleEntries(state)) : groupProjects(visibleEntries(state));
+            if (groups[index]) {
+                groupRows(groups[index].entries).forEach(function (row) {
+                    if (row.key === key) { setEntriesSelected(state, row.entries, checked); }
                 });
-            });
+            }
             render(state);
         });
         $(".approval-note").off("click.approvals").on("click.approvals", function () {
