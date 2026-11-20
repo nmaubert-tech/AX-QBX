@@ -10,8 +10,12 @@
         return isNaN(d.getTime()) ? null : d;
     }
     function alias(name) {
-        if (!global.aliasMap || !global.aliasMap[name]) { throw new Error("Missing Quickbase alias: " + name); }
-        return global.aliasMap[name];
+        var dbidPattern = /^b[a-z0-9]{8}$/i;
+        var value = String(name || "").trim();
+        if (dbidPattern.test(value)) { return value; }
+        var resolved = global.aliasMap && global.aliasMap[value];
+        if (dbidPattern.test(String(resolved || ""))) { return resolved; }
+        throw new Error("Time Entries table mapping has not been resolved: " + value);
     }
     // Resolve application table aliases through Quickbase metadata rather than globals.
     // The private config provides an alias such as _dbid_time_entries, not a DBID.
