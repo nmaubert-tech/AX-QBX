@@ -99,7 +99,9 @@
         $("#approveSelectedButton").prop("disabled", true).text("Approving…");
         global.AxialTimesheetApprovalsData.approveSelected(state).then(function (count) {
             logger().info("timesheet.approvals.approved", "Timesheet approval completed", { stage: state.view, count: count });
-            return reload();
+            return global.AxialTimesheetApprovalsData.resolveTimeEntriesTable(state).then(function () {
+                return reload();
+            });
         }).catch(function (error) {
             logger().error("timesheet.approvals.approve.failed", error.message, error.details || {});
             global.alert(error.message + "\n\nCorrelation ID: " + context.correlationId);
