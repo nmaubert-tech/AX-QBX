@@ -93,7 +93,7 @@
         var p = state.periods[state.currentIndex], html = "<div class='ts-week-header'><table><colgroup>";
         html += "<col class='ts-col-code'><col class='ts-col-task'>";
         for (var c = 0; c < 7; c++) { html += "<col class='ts-col-day'>"; }
-        html += "<col class='ts-col-budget'><col class='ts-col-total'></colgroup><thead><tr>";
+        html += "<col class='ts-col-total'></colgroup><thead><tr>";
         var visible = visibleEntries(state), eligible = eligibleEntries(state, visible);
         var selected = eligible.filter(function (entry) { return !!state.selected[entry.id]; }).length;
         html += "<th class='ts-col-code'><label class='approval-select-all-label' title='Select all eligible visible entries'>" +
@@ -107,7 +107,7 @@
             if (d.getTime() === today.getTime()) { classes += " today-col"; }
             html += "<th class='day-col" + classes + "'><small>" + days[i] + "</small><b>" + d.getDate() + "</b></th>";
         }
-        html += "<th>Status</th><th>Total</th></tr></thead></table></div>";
+        html += "<th>Total</th></tr></thead></table></div>";
         return html;
     }
 
@@ -125,6 +125,9 @@
             if (eligible) { html += "<input class='approval-entry-select' type='checkbox' data-entry-id='" + esc(entry.id) + "' " + (state.selected[entry.id] ? "checked" : "") + ">"; }
             if (entry.standardHours) { html += "<strong>" + entry.standardHours.toFixed(1) + "</strong>"; }
             if (entry.overtimeHours) { html += " <span class='label label-default'>OT " + entry.overtimeHours.toFixed(1) + "</span>"; }
+            var entryStatus = entry.payrollApproved ? "Payroll approved" : (entry.approved ? "PM approved" : "Pending");
+            var statusClass = entry.payrollApproved ? "is-payroll" : (entry.approved ? "is-pm" : "is-pending");
+            html += " <span class='approval-entry-status " + statusClass + "' title='" + entryStatus + "' aria-label='" + entryStatus + "'>" + entryStatus + "</span>";
             if (entry.standardNote || entry.internalComment) {
                 var noteIcon = entry.standardNote ? "https://images.quickbase.com/si/16/008-doc_edit.png" : "https://images.quickbase.com/si/16/080-file_message.png";
                 html += " <button type='button' class='note-btn has-note approval-note' data-entry-id='" + esc(entry.id) + "' title='View time entry notes' aria-label='View time entry notes'><img src='" + noteIcon + "' alt=''></button>";
@@ -138,23 +141,20 @@
     function rowHtml(state, row) {
         var p = state.periods[state.currentIndex], eligible = row.entries.filter(function (entry) { return isEligible(state, entry); });
         var selectedAll = eligible.length && eligible.every(function (entry) { return !!state.selected[entry.id]; });
-        var allPayroll = row.entries.every(function (entry) { return entry.payrollApproved; });
-        var allPm = row.entries.every(function (entry) { return entry.approved || entry.payrollApproved; });
-        var rowStatus = allPayroll ? "Payroll" : (allPm ? "PM" : "Pending");
         var primary = state.view === "payroll" ? row.projectCode : row.resourceName;
         var secondary = row.taskName;
         var html = "<tr data-row-key='" + esc(row.key) + "'><td class='ts-col-code'>";
         if (eligible.length) { html += "<input class='approval-row-select' type='checkbox' data-row-key='" + esc(row.key) + "' " + (selectedAll ? "checked" : "") + ">"; }
         html += "</td><td class='ts-col-task'><div class='task-name'>" + esc(primary) + "</div><div class='project-description'>" + esc(secondary) + "</div></td>";
         for (var i = 0; i < 7; i++) { var d = new Date(p.start); d.setDate(d.getDate() + i); html += dayCell(state, row, d, i); }
-        html += "<td class='budget-cell'>" + esc(rowStatus) + "</td><td class='task-total'>" + totalHours(row.entries).toFixed(1) + "</td></tr>";
+        html += "<td class='task-total'>" + totalHours(row.entries).toFixed(1) + "</td></tr>";
         return html;
     }
 
     function tableBody(state, entries) {
         var rows = groupRows(entries), html = "<div class='table-responsive'><table class='timesheet-grid'><colgroup><col class='ts-col-code'><col class='ts-col-task'>";
         for (var c = 0; c < 7; c++) { html += "<col class='ts-col-day'>"; }
-        html += "<col class='ts-col-budget'><col class='ts-col-total'></colgroup><tbody>";
+        html += "<col class='ts-col-total'></colgroup><tbody>";
         rows.forEach(function (row) { html += rowHtml(state, row); });
         html += "</tbody></table></div>";
         return html;
