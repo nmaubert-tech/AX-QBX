@@ -3,11 +3,25 @@
 
     function f(record, id) { return global.jQuery(record).find("f#" + id).text(); }
     function num(value) { var n = parseFloat(value); return isNaN(n) ? 0 : n; }
+    // Quickbase date-only fields are represented as UTC-midnight timestamps.
+    // Construct a local calendar date from UTC components so Alberta and other
+    // timezones display the recorded work day, not the preceding date.
     function qbDate(value) {
-        if (!value) { return null; }
-        if (/^\d+$/.test(String(value))) { return new Date(parseInt(value, 10)); }
-        var d = new Date(value);
-        return isNaN(d.getTime()) ? null : d;
+        if (value == null || String(value).trim() === "") { return null; }
+        var text = String(value).trim(), match, d, year, month, day;
+        if (/^\d+$/.test(text)) {
+            d = new Date(Number(text));
+            if (isNaN(d.getTime())) { return null; }
+            return new Date(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate());
+        }
+        match = /^(\d{4})-(\d{2})-(\d{2})(?:$|[T ])/.exec(text);
+        if (match) {
+            year = Number(match[1]); month = Number(match[2]); day = Number(match[3]);
+            d = new Date(year, month - 1, day);
+            return d.getFullYear() === year && d.getMonth() === month - 1 && d.getDate() === day ? d : null;
+        }
+        d = new Date(text);
+        return isNaN(d.getTime()) ? null : new Date(d.getFullYear(), d.getMonth(), d.getDate());
     }
     function alias(name) {
         var dbidPattern = /^b[a-z0-9]{8}$/i;
