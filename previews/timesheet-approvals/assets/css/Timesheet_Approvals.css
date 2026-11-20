@@ -66,24 +66,50 @@ body.ax-timesheet .note-btn.approval-note img { width: 16px; height: 16px; displ
   body.ax-timesheet .approval-card-header .approval-select-group span { display: none; }
 }
 
-/* Approval stage belongs to each time entry, never to its task/employee row. */
-body.ax-timesheet .timesheet-grid .approval-entry-status {
+/* Time-entry content stacks vertically like the regular/overtime timesheet cells. */
+body.ax-timesheet .timesheet-grid td.ts-col-day {
+  padding: 5px 3px;
+}
+body.ax-timesheet .timesheet-grid .approval-entry-block {
+  display: flex; flex-direction: column; align-items: center;
+  justify-content: center; gap: 4px; min-width: 0;
+  padding: 4px 1px;
+}
+body.ax-timesheet .timesheet-grid .approval-entry-block + .approval-entry-block {
+  border-top: 1px solid var(--ax-border-soft); margin-top: 4px; padding-top: 7px;
+}
+body.ax-timesheet .timesheet-grid .approval-entry-hours {
+  display: flex; flex-direction: column; align-items: center;
+  justify-content: center; gap: 2px; min-height: 22px;
+}
+body.ax-timesheet .timesheet-grid .approval-regular-hours strong {
+  font-size: 15px; line-height: 1.2; font-weight: 650;
+}
+body.ax-timesheet .timesheet-grid .approval-overtime-hours {
+  display: flex; align-items: center; justify-content: center; gap: 5px;
+  font-size: 11px; line-height: 1.2; color: #53606c;
+}
+body.ax-timesheet .timesheet-grid .approval-overtime-hours strong {
+  font-size: 12px; line-height: 1.2;
+}
+body.ax-timesheet .timesheet-grid .approval-entry-actions {
+  display: flex; flex-direction: row; align-items: center;
+  justify-content: center; gap: 7px; min-height: 23px;
+}
+body.ax-timesheet .timesheet-grid .approval-entry-status-icon {
   display: inline-flex; align-items: center; justify-content: center;
-  max-width: 100%; min-height: 17px; padding: 1px 4px;
-  border: 1px solid #d6dce2; border-radius: 3px;
-  background: #f5f7f9; color: #515c66;
-  font-size: 10px; font-weight: 600; line-height: 1.2;
-  letter-spacing: 0; white-space: nowrap;
+  height: 22px; width: 22px; flex: 0 0 22px;
+  border-radius: 4px; color: #687580;
 }
-body.ax-timesheet .timesheet-grid .approval-entry-status.is-pm {
-  background: #eaf3fb; border-color: #b6d3e8; color: #245d85;
+body.ax-timesheet .timesheet-grid .approval-entry-status-icon.is-pm {
+  color: #245d85; background: #eaf3fb;
 }
-body.ax-timesheet .timesheet-grid .approval-entry-status.is-payroll {
-  background: #e8f3ea; border-color: #bbdbc4; color: #28613e;
+body.ax-timesheet .timesheet-grid .approval-entry-status-icon.is-payroll {
+  color: #28613e; background: #e8f3ea;
 }
-body.ax-timesheet .timesheet-grid .approval-entry-status.is-pending {
-  background: #f4f5f6; border-color: #d6dce2; color: #5d6872;
+body.ax-timesheet .timesheet-grid .approval-entry-status-icon.is-pending {
+  color: #687580; background: #f0f2f4;
 }
-body.ax-timesheet .timesheet-grid td.ts-col-day .entry-line {
-  row-gap: 3px;
+body.ax-timesheet .timesheet-grid .approval-entry-status-icon svg {
+  display: block; width: 16px; height: 16px;
 }
