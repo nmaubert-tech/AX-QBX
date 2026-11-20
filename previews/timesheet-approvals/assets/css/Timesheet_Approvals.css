@@ -1,0 +1,67 @@
+/* Timesheet Approvals preview-only refinements. Shared production stylesheet is unchanged. */
+body.ax-timesheet .ts-nav { gap: 9px; }
+body.ax-timesheet .ts-nav select, body.ax-timesheet .ts-nav input,
+body.ax-timesheet .ts-nav button { font-size: 13px; }
+body.ax-timesheet .status-bar { font-size: 12px; }
+body.ax-timesheet .ts-week-header th { font-size: 12px; }
+body.ax-timesheet .timesheet-grid .task-name { font-size: 14px; line-height: 1.35; font-weight: 600; }
+body.ax-timesheet .timesheet-grid .project-description { font-size: 12px; line-height: 1.35; }
+body.ax-timesheet .timesheet-grid td { font-size: 13px; }
+body.ax-timesheet .timesheet-grid td.ts-col-task { overflow-wrap: anywhere; }
+body.ax-timesheet .timesheet-grid td.ts-col-code { text-align: center; padding-left: 5px; }
+body.ax-timesheet .timesheet-grid .entry-line { gap: 5px; flex-wrap: wrap; }
+body.ax-timesheet .timesheet-grid .entry-line strong { font-size: 14px; font-weight: 650; }
+body.ax-timesheet .timesheet-grid input[type=checkbox],
+body.ax-timesheet .ts-week-header input[type=checkbox],
+body.ax-timesheet .approval-card-header input[type=checkbox] { width: 16px; height: 16px; margin: 0; vertical-align: middle; accent-color: #2878b8; cursor: pointer; }
+body.ax-timesheet .ts-week-header .approval-select-all-label { margin: 0; display: inline-flex; align-items: center; gap: 7px; font-size: 12px; cursor: pointer; white-space: nowrap; }
+body.ax-timesheet .ts-week-header th.ts-col-code { padding-left: 8px; }
+body.ax-timesheet .ts-week-header .approval-select-all-label input:disabled { cursor: not-allowed; }
+body.ax-timesheet .approval-card-header {
+  width: calc(100vw - 48px); max-width: calc(100vw - 48px);
+  min-height: 48px; height: auto; padding: 8px 12px;
+  display: flex; flex-wrap: wrap; align-items: center;
+  justify-content: space-between; gap: 6px 18px;
+  cursor: default; overflow: hidden; box-sizing: border-box;
+  text-transform: none; letter-spacing: 0;
+}
+body.ax-timesheet .approval-card-header .approval-card-identity {
+  display: flex; align-items: center; gap: 12px; min-width: 0;
+  flex: 1 1 240px; overflow-wrap: anywhere;
+}
+body.ax-timesheet .approval-card-header .approval-card-identity strong {
+  font-size: 14px; font-weight: 700; color: #25313b; line-height: 1.4;
+  min-width: 0; overflow-wrap: anywhere;
+}
+body.ax-timesheet .approval-card-header .approval-select-group {
+  display: inline-flex; align-items: center; flex: 0 0 auto; gap: 6px;
+  font-weight: 500; margin: 0; font-size: 11px; color: #465665;
+  text-transform: none; letter-spacing: 0; white-space: nowrap; cursor: pointer;
+}
+body.ax-timesheet .approval-card-header .approval-select-group span { color: #465665; }
+body.ax-timesheet .approval-card-header .approval-group-summary {
+  flex: 0 1 430px; min-width: 0; max-width: 100%; text-align: right;
+  font-size: 12px; line-height: 1.4; overflow-wrap: anywhere;
+  white-space: normal; color: #4e5964;
+}
+body.ax-timesheet .approval-card-header:hover { background: var(--ts-card-header); }
+body.ax-timesheet .note-btn.approval-note {
+  width: 24px; height: 24px; flex: 0 0 24px;
+  border-radius: 4px; display: inline-flex; align-items: center;
+  justify-content: center; background: #e2e8ed; border: 1px solid #aab5be;
+  padding: 2px; transition: background .12s ease, border-color .12s ease;
+}
+body.ax-timesheet .note-btn.approval-note:hover,
+body.ax-timesheet .note-btn.approval-note:focus-visible {
+  background: #d6e8f6; border-color: #2878b8; outline-offset: 2px;
+}
+body.ax-timesheet .note-btn.approval-note img { width: 16px; height: 16px; display: block; opacity: 1; }
+@media(max-width:900px) {
+  body.ax-timesheet .approval-card-header { width: calc(100vw - 30px); max-width: calc(100vw - 30px); }
+  body.ax-timesheet .approval-card-header .approval-group-summary { text-align: left; flex: 1 1 100%; }
+  body.ax-timesheet .approval-card-header .approval-card-identity { flex-basis: 100%; }
+}
+@media(max-width:560px) {
+  body.ax-timesheet .approval-card-header { width: calc(100vw - 22px); max-width: calc(100vw - 22px); }
+  body.ax-timesheet .approval-card-header .approval-select-group span { display: none; }
+}
