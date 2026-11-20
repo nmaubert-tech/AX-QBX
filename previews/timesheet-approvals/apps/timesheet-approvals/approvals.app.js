@@ -38,7 +38,7 @@
         var link = global.document.createElement("link");
         link.id = "axial-approvals-preview-style";
         link.rel = "stylesheet";
-        link.href = String(base).replace(/\\/$/, "") + "/assets/css/Timesheet_Approvals.css";
+        link.href = String(base).replace(/[/]$/, "") + "/assets/css/Timesheet_Approvals.css";
         link.onerror = function () { logger().error("timesheet.approvals.style.failed", "Unable to load preview stylesheet"); };
         global.document.head.appendChild(link);
     }
