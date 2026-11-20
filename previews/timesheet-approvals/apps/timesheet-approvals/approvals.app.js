@@ -32,6 +32,21 @@
     var state = { config: config, context: context, user: null, periods: [], currentIndex: 0, view: "project", entries: [], selected: {}, isPayrollApprover: false };
 
     function logger() { return global.AxialQB.logger; }
+    function installPreviewStyles() {
+        var base = global.AXIAL_PAGE_CONFIG && global.AXIAL_PAGE_CONFIG.assetBase;
+        if (!base || global.document.getElementById("axial-approvals-preview-style")) { return; }
+        var link = global.document.createElement("link");
+        link.id = "axial-approvals-preview-style";
+        link.rel = "stylesheet";
+        link.href = String(base).replace(/\\/$/, "") + "/assets/css/Timesheet_Approvals.css";
+        link.onerror = function () { logger().error("timesheet.approvals.style.failed", "Unable to load preview stylesheet"); };
+        global.document.head.appendChild(link);
+    }
+    function homeUrl() {
+        var appId = String(global.location.pathname || "").split("/").filter(Boolean).pop();
+        if (!/^b[a-z0-9]{8}$/i.test(appId)) { throw new Error("Unable to determine the Quickbase application home URL."); }
+        return "/db/" + encodeURIComponent(appId) + "?a=td";
+    }
     function setBusy(message) { $("#loadingState").text(message || "").toggle(!!message); }
     function matchesAllowedUser(user) {
         return config.payrollApproverUserIds.some(function (value) {
@@ -137,10 +152,14 @@
         $("#approveSelectedButton").on("click", approveSelected);
         $("#returnSelectedButton").on("click", openReturn);
         $("#confirmReturnButton").on("click", returnSelected);
-        $("#homeButton").on("click", function () { if (global.aliasMap && global.aliasMap.app_id) { global.location = global.aliasMap.app_id; } });
+        $("#homeButton").on("click", function () {
+            try { global.location.assign(homeUrl()); }
+            catch (error) { logger().error("timesheet.approvals.home.failed", error.message); global.alert(error.message); }
+        });
     }
 
     function start() {
+        installPreviewStyles();
         logger().configure({ contextProvider: function () { return context; } });
         logger().installGlobalHandlers();
         initWeeks(); bind(); setBusy("Resolving Quickbase user…");
