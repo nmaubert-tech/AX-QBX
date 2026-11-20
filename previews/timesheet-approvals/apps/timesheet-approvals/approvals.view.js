@@ -255,7 +255,12 @@
             var id = String($(this).data("entryId"));
             var entry = state.entries.filter(function (row) { return String(row.id) === id; })[0];
             if (!entry) { return; }
-            $("#approvalNoteEmployee").text(entry.standardNote || "No employee note.");
+            // The stored standardNote is the client-facing comment, not an employee note.
+            // The modal shell lives in Quickbase page 179, so normalize its label here.
+            $("#approvalNoteModal").find("label, strong, span, div, p, small").filter(function () {
+                return $(this).children().length === 0 && $(this).text().trim() === "Employee note";
+            }).text("Client-facing comment");
+            $("#approvalNoteEmployee").text(entry.standardNote || "No client-facing comment.");
             $("#approvalNoteInternal").text(entry.internalComment || "No internal comment.");
             $("#approvalNoteModal").modal();
         });
