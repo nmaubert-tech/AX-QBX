@@ -65,3 +65,25 @@ body.ax-timesheet .note-btn.approval-note img { width: 16px; height: 16px; displ
   body.ax-timesheet .approval-card-header { width: calc(100vw - 22px); max-width: calc(100vw - 22px); }
   body.ax-timesheet .approval-card-header .approval-select-group span { display: none; }
 }
+
+/* Approval stage belongs to each time entry, never to its task/employee row. */
+body.ax-timesheet .timesheet-grid .approval-entry-status {
+  display: inline-flex; align-items: center; justify-content: center;
+  max-width: 100%; min-height: 17px; padding: 1px 4px;
+  border: 1px solid #d6dce2; border-radius: 3px;
+  background: #f5f7f9; color: #515c66;
+  font-size: 10px; font-weight: 600; line-height: 1.2;
+  letter-spacing: 0; white-space: nowrap;
+}
+body.ax-timesheet .timesheet-grid .approval-entry-status.is-pm {
+  background: #eaf3fb; border-color: #b6d3e8; color: #245d85;
+}
+body.ax-timesheet .timesheet-grid .approval-entry-status.is-payroll {
+  background: #e8f3ea; border-color: #bbdbc4; color: #28613e;
+}
+body.ax-timesheet .timesheet-grid .approval-entry-status.is-pending {
+  background: #f4f5f6; border-color: #d6dce2; color: #5d6872;
+}
+body.ax-timesheet .timesheet-grid td.ts-col-day .entry-line {
+  row-gap: 3px;
+}
