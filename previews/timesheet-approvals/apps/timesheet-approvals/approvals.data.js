@@ -13,6 +13,53 @@
         if (!global.aliasMap || !global.aliasMap[name]) { throw new Error("Missing Quickbase alias: " + name); }
         return global.aliasMap[name];
     }
+    // Resolve application table aliases through Quickbase metadata rather than globals.
+    // The private config provides an alias such as _dbid_time_entries, not a DBID.
+    function resolveTimeEntriesTable(state) {
+        var configured = String(state.config.tableAliases.timeEntries || "").trim();
+        var validDbid = /^b[a-z0-9]{8}$/i;
+        if (validDbid.test(configured)) {
+            return Promise.resolve(configured);
+        }
+        if (!/^_dbid_[a-z0-9_]+$/i.test(configured)) {
+            return Promise.reject(new Error("Invalid Time Entries table alias configuration."));
+        }
+        if (global.aliasMap && validDbid.test(String(global.aliasMap[configured] || ""))) {
+            return Promise.resolve(global.aliasMap[configured]);
+        }
+        var appId = String((global.location.pathname || "").split("/").pop() || "");
+        if (!validDbid.test(appId)) {
+            return Promise.reject(new Error("Cannot determine the Quickbase application ID for table alias resolution."));
+        }
+        return global.AxialQB.quickbase.request({
+            url: "/db/" + encodeURIComponent(appId) + "?a=API_GetSchema&apptoken=" + encodeURIComponent(state.config.appToken || ""),
+            eventName: "timesheet.approvals.schema.failed",
+            errorMessage: "Unable to read Quickbase application schema"
+        }).then(function (response) {
+            var $xml = global.jQuery(response.data);
+            var errorCode = $xml.find("errcode").first().text();
+            if (errorCode !== "0") {
+                var errorText = $xml.find("errtext").first().text() || "Unknown Quickbase schema error";
+                throw new Error("Quickbase application schema lookup failed: " + errorText + " (code " + (errorCode || "missing") + ")");
+            }
+            var matches = [];
+            $xml.find("chdbids chdbid").each(function () {
+                if (String(global.jQuery(this).attr("name") || "").toLowerCase() === configured.toLowerCase()) {
+                    matches.push(String(global.jQuery(this).text() || "").trim());
+                }
+            });
+            if (matches.length !== 1 || !validDbid.test(matches[0])) {
+                throw new Error("Time Entries alias " + configured + " was not found uniquely in the OpsDB application schema.");
+            }
+            if (!global.aliasMap) { global.aliasMap = {}; }
+            if (global.aliasMap[configured] && global.aliasMap[configured] !== matches[0]) {
+                throw new Error("Conflicting Time Entries table mapping; refusing to use an unverified table.");
+            }
+            global.aliasMap[configured] = matches[0];
+            return matches[0];
+        });
+    }
+
     function quote(value) { return String(value == null ? "" : value).replace(/'/g, "\\'"); }
     function normalize(value) { return String(value || "").trim().toLowerCase(); }
     function matchesIdentity(value, user) {
@@ -228,6 +275,7 @@
     }
 
     global.AxialTimesheetApprovalsData = {
+        resolveTimeEntriesTable: resolveTimeEntriesTable,
         loadEntries: loadEntries,
         selectedEntries: selectedEntries,
         approveSelected: approveSelected,
