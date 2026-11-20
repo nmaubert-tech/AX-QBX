@@ -33,14 +33,23 @@
 
     function logger() { return global.AxialQB.logger; }
     function installPreviewStyles() {
-        var base = global.AXIAL_PAGE_CONFIG && global.AXIAL_PAGE_CONFIG.assetBase;
-        if (!base || global.document.getElementById("axial-approvals-preview-style")) { return; }
-        var link = global.document.createElement("link");
-        link.id = "axial-approvals-preview-style";
-        link.rel = "stylesheet";
-        link.href = String(base).replace(/[/]$/, "") + "/assets/css/Timesheet_Approvals.css";
-        link.onerror = function () { logger().error("timesheet.approvals.style.failed", "Unable to load preview stylesheet"); };
-        global.document.head.appendChild(link);
+        return new Promise(function (resolve, reject) {
+            var base = global.AXIAL_PAGE_CONFIG && global.AXIAL_PAGE_CONFIG.assetBase;
+            if (!base) { reject(new Error("Timesheet Approvals preview stylesheet base is missing.")); return; }
+            var existing = global.document.getElementById("axial-approvals-preview-style");
+            if (existing && existing.dataset.loaded === "true") { resolve(); return; }
+            var link = existing || global.document.createElement("link");
+            if (!existing) {
+                link.id = "axial-approvals-preview-style";
+                link.rel = "stylesheet";
+                link.href = String(base).replace(/[/]$/, "") + "/assets/css/Timesheet_Approvals.css";
+            }
+            link.addEventListener("load", function () { link.dataset.loaded = "true"; resolve(); }, { once: true });
+            link.addEventListener("error", function () {
+                reject(new Error("Timesheet Approvals preview stylesheet failed to load."));
+            }, { once: true });
+            if (!existing) { global.document.head.appendChild(link); }
+        });
     }
     function homeUrl() {
         var appId = String(global.location.pathname || "").split("/").filter(Boolean).pop();
@@ -102,7 +111,6 @@
         if (view !== "project" && view !== "payroll") { return; }
         state.view = view;
         $("#approvalView").val(view);
-        $("#approvalStatusFilter").val("needs");
         reload();
     }
 
@@ -159,25 +167,33 @@
     }
 
     function start() {
-        installPreviewStyles();
         logger().configure({ contextProvider: function () { return context; } });
         logger().installGlobalHandlers();
-        initWeeks(); bind(); setBusy("Resolving Quickbase user…");
-
-        global.AxialQB.quickbase.getCurrentUserInfo(config.appToken).then(function (user) {
+        // Keep the queue out of view until the preview styling is fully loaded.
+        var root = global.document.getElementById("timesheet-container");
+        if (root) { root.style.visibility = "hidden"; }
+        setBusy("Loading Timesheet Approvals…");
+        return installPreviewStyles().then(function () {
+            initWeeks();
+            bind();
+            setBusy("Resolving Quickbase user…");
+            return global.AxialQB.quickbase.getCurrentUserInfo(config.appToken);
+        }).then(function (user) {
             state.user = user;
             context.loggedInUserId = user.id;
             state.isPayrollApprover = matchesAllowedUser(user);
             if (!global.AxialTimesheetApprovalsData.returnSupported(state)) {
                 $("#returnSelectedButton").prop("disabled", true).attr("title", "Return workflow requires configured audit fields.");
             }
-            return global.AxialTimesheetApprovalsData.resolveTimeEntriesTable(state).then(function () {
-                return reload();
-            });
+            return global.AxialTimesheetApprovalsData.resolveTimeEntriesTable(state);
+        }).then(function () {
+            if (root) { root.style.visibility = ""; }
+            return reload();
         }).catch(function (error) {
+            if (root) { root.style.visibility = ""; }
             setBusy("");
             logger().error("timesheet.approvals.bootstrap.failed", error.message, error.details || {});
-            $("#timesheet-container").html("<div class='error-state'>Timesheet approvals could not initialize. " + String(error.message || "") + " Correlation ID: " + context.correlationId + "</div>");
+            $("#timesheet-container").text("Timesheet approvals could not initialize. " + String(error.message || "") + " Correlation ID: " + context.correlationId).addClass("error-state");
         });
     }
 
