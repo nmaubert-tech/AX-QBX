@@ -32,6 +32,11 @@
     var state = { config: config, context: context, user: null, periods: [], currentIndex: 0, view: "project", entries: [], selected: {}, isPayrollApprover: false };
 
     function logger() { return global.AxialQB.logger; }
+    function revealPage() {
+        // The initial-paint gate is inline in Quickbase page 179's <head>.
+        // Release the gate only after the preview CSS and queue initialization finish.
+        global.document.documentElement.classList.add("axial-approvals-ready");
+    }
     function installPreviewStyles() {
         return new Promise(function (resolve, reject) {
             var base = global.AXIAL_PAGE_CONFIG && global.AXIAL_PAGE_CONFIG.assetBase;
@@ -189,8 +194,11 @@
         }).then(function () {
             if (root) { root.style.visibility = ""; }
             return reload();
+        }).then(function () {
+            revealPage();
         }).catch(function (error) {
             if (root) { root.style.visibility = ""; }
+            revealPage();
             setBusy("");
             logger().error("timesheet.approvals.bootstrap.failed", error.message, error.details || {});
             $("#timesheet-container").text("Timesheet approvals could not initialize. " + String(error.message || "") + " Correlation ID: " + context.correlationId).addClass("error-state");
