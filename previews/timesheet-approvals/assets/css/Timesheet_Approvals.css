@@ -96,20 +96,30 @@ body.ax-timesheet .timesheet-grid .approval-entry-actions {
   display: flex; flex-direction: row; align-items: center;
   justify-content: center; gap: 7px; min-height: 23px;
 }
-body.ax-timesheet .timesheet-grid .approval-entry-status-icon {
-  display: inline-flex; align-items: center; justify-content: center;
-  height: 22px; width: 22px; flex: 0 0 22px;
-  border-radius: 4px; color: #687580;
+/* Short, explicit approval stages. Applied to each time-entry record only. */
+body.ax-timesheet .timesheet-grid .approval-entry-stage {
+  display: inline-block; max-width: 100%; padding: 2px 4px;
+  border: 1px solid #cfd7df; border-radius: 3px;
+  background: #f3f5f7; color: #374151;
+  font: 600 10px/1.25 -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif;
+  white-space: nowrap; letter-spacing: 0; text-transform: none;
 }
-body.ax-timesheet .timesheet-grid .approval-entry-status-icon.is-pm {
-  color: #245d85; background: #eaf3fb;
+body.ax-timesheet .timesheet-grid .approval-entry-stage.is-pm-review {
+  color: #814b0b; border-color: #e9d6b1; background: #fff5e6;
 }
-body.ax-timesheet .timesheet-grid .approval-entry-status-icon.is-payroll {
-  color: #28613e; background: #e8f3ea;
+body.ax-timesheet .timesheet-grid .approval-entry-stage.is-payroll-review {
+  color: #245d85; border-color: #b6d3e8; background: #eaf3fb;
 }
-body.ax-timesheet .timesheet-grid .approval-entry-status-icon.is-pending {
-  color: #687580; background: #f0f2f4;
+body.ax-timesheet .timesheet-grid .approval-entry-stage.is-approved {
+  color: #28613e; border-color: #bbdbc4; background: #e8f3ea;
 }
-body.ax-timesheet .timesheet-grid .approval-entry-status-icon svg {
-  display: block; width: 16px; height: 16px;
+body.ax-timesheet .timesheet-grid .approval-entry-stage.is-payroll-only {
+  color: #644a87; border-color: #d6c9e5; background: #f5f0fa;
+}
+/* Keep the cell stacked: hours above a separate controls/status area. */
+body.ax-timesheet .timesheet-grid .approval-entry-actions {
+  flex-wrap: wrap; gap: 4px 5px; padding: 0 2px;
+}
+body.ax-timesheet .timesheet-grid .approval-entry-stage {
+  flex: 0 0 auto;
 }
