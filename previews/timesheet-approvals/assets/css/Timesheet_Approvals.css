@@ -123,3 +123,86 @@ body.ax-timesheet .timesheet-grid .approval-entry-actions {
 body.ax-timesheet .timesheet-grid .approval-entry-stage {
   flex: 0 0 auto;
 }
+
+/* Employee timecards: independently collapsible, with local approval filtering. */
+body.ax-timesheet .approval-card-toolbar {
+  display:flex;align-items:center;gap:8px;flex-wrap:wrap;
+  padding:7px 10px;background:#f6f8fa;border:1px solid var(--ax-border);
+  border-top:0;font-size:12px;color:#56636e;
+}
+body.ax-timesheet .approval-card-toolbar button,
+body.ax-timesheet .approval-employee-toolbar button,
+body.ax-timesheet .approval-employee-toolbar select {
+  min-height:28px;border:1px solid #aebac5;border-radius:4px;
+  background:#fff;color:#293744;padding:3px 9px;
+  font:600 12px/1.3 "Segoe UI",Arial,sans-serif;
+}
+body.ax-timesheet .approval-card-toolbar button:hover,
+body.ax-timesheet .approval-employee-toolbar button:hover {
+  background:#eaf3fb;border-color:#6b97ba;
+}
+body.ax-timesheet .approval-card-toolbar span {margin-left:8px;}
+body.ax-timesheet .approval-employee-toolbar {
+  position:sticky;left:0;z-index:72;
+  box-sizing:border-box;width:calc(100vw - 48px);max-width:calc(100vw - 48px);
+  min-height:44px;display:flex;align-items:center;flex-wrap:wrap;
+  gap:8px 11px;padding:7px 10px;
+  background:var(--ts-card-header);border-left:4px solid #4b5259;
+  border-bottom:1px solid #c3ccd3;
+}
+body.ax-timesheet .approval-employee-name {
+  min-width:0;flex:1 1 160px;overflow-wrap:anywhere;
+  color:#25313b;font-size:14px;line-height:1.3;
+}
+body.ax-timesheet .approval-employee-toggle {
+  flex:0 0 28px;width:28px;padding:2px!important;
+  font-size:18px!important;line-height:1!important;
+}
+body.ax-timesheet .approval-employee-toolbar .approval-select-group {
+  display:inline-flex;gap:5px;align-items:center;white-space:nowrap;
+  font-size:11px;font-weight:500;margin:0;
+}
+body.ax-timesheet .approval-employee-toolbar .approval-select-group span {color:#445563;}
+body.ax-timesheet .approval-employee-filter-label {
+  display:inline-flex;align-items:center;gap:6px;margin:0;
+  color:#435261;font-weight:500;font-size:12px;white-space:nowrap;
+}
+body.ax-timesheet .approval-employee-filter {
+  min-width:120px;max-width:170px;
+}
+body.ax-timesheet .approval-employee-week-total {
+  font-size:12px;font-weight:700;color:#344453;white-space:nowrap;
+}
+body.ax-timesheet .approval-daily-table {
+  width:100%;min-width:1114px;table-layout:fixed;border-spacing:0;
+  border-collapse:separate;background:#edf2f6;
+}
+body.ax-timesheet .approval-daily-table th,
+body.ax-timesheet .approval-daily-table td {
+  box-sizing:border-box; height:38px;padding:4px 5px;
+  border-right:1px solid #d6dce2;border-bottom:1px solid #d6dce2;
+  background:#edf2f6;font-size:12px;font-weight:600;text-align:center;
+}
+body.ax-timesheet .approval-daily-table th.approval-daily-label {
+  text-align:left;padding-left:12px;color:#3f505e;
+  position:sticky;left:0;z-index:3;background:#edf2f6;
+}
+body.ax-timesheet .approval-daily-hour strong {font-size:14px;color:#253c4c;}
+body.ax-timesheet .approval-daily-day {display:none;}
+body.ax-timesheet .approval-daily-table .approval-daily-total {
+  background:#dce5ec;color:#243947;font-weight:700;font-size:14px;
+}
+body.ax-timesheet .approval-employee-body[hidden] {display:none!important;}
+body.ax-timesheet .approval-employee-card {overflow:visible;}
+@media(max-width:900px){
+  body.ax-timesheet .approval-employee-toolbar {
+    width:calc(100vw - 30px);max-width:calc(100vw - 30px);
+  }
+  body.ax-timesheet .approval-card-toolbar span {flex-basis:100%;margin-left:0;}
+}
+@media(max-width:560px){
+  body.ax-timesheet .approval-employee-toolbar {
+    width:calc(100vw - 22px);max-width:calc(100vw - 22px);
+  }
+  body.ax-timesheet .approval-employee-filter {min-width:105px;}
+}
