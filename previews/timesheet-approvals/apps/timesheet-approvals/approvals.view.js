@@ -111,19 +111,27 @@
         return html;
     }
 
+    function approvalStatusLabel(entry) {
+        if (entry.payrollApproved && !entry.approved) {
+            return {
+                text: "Payroll Only",
+                tooltip: "Payroll approved; PM approval is not recorded for this time entry.",
+                kind: "is-payroll-only"
+            };
+        }
+        if (entry.payrollApproved) {
+            return { text: "Approved", tooltip: "Both PM and Payroll approvals are recorded.", kind: "is-approved" };
+        }
+        if (entry.approved) {
+            return { text: "Payroll Review", tooltip: "PM approved; Payroll approval is still required.", kind: "is-payroll-review" };
+        }
+        return { text: "PM Review", tooltip: "PM approval has not been recorded for this time entry.", kind: "is-pm-review" };
+    }
+
     function approvalStatusIcon(entry) {
-        var status = entry.payrollApproved ? "Payroll approved" : (entry.approved ? "PM approved" : "Pending");
-        var kind = entry.payrollApproved ? "is-payroll" : (entry.approved ? "is-pm" : "is-pending");
-        // Semantic icon only: the tooltip/ARIA label carry the complete status.
-        var glyph = entry.payrollApproved
-            ? "<path d='M4 12l5 5L20 6'></path><path d='M4 18l3 3L20 8'></path>"
-            : (entry.approved
-                ? "<path d='M4 12l5 5L20 6'></path>"
-                : "<circle cx='12' cy='12' r='9'></circle><path d='M12 7v5l3 2'></path>");
-        return "<span class='approval-entry-status-icon " + kind + "' role='img' title='" + status +
-            "' aria-label='" + status + "'><svg viewBox='0 0 24 24' width='16' height='16' fill='none' " +
-            "stroke='currentColor' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round' " +
-            "aria-hidden='true'>" + glyph + "</svg></span>";
+        var status = approvalStatusLabel(entry);
+        return "<span class='approval-entry-stage " + status.kind + "' title='" + esc(status.tooltip) +
+            "' aria-label='" + esc(status.tooltip) + "'>" + esc(status.text) + "</span>";
     }
 
     function dayCell(state, row, date, index) {
