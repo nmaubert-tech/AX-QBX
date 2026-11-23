@@ -35,6 +35,9 @@
         return String(requested || "").toLowerCase() === "project" ? "project" : "payroll";
     }
     var pageMode = initialMode();
+    // The shared context runtime reads AXIAL_PAGE_CONFIG.mode before config.mode.
+    // Synchronize it so diagnostics and the visible workflow agree.
+    if (global.AXIAL_PAGE_CONFIG) { global.AXIAL_PAGE_CONFIG.mode = pageMode; }
     var context = global.AxialQB.context.create({
         application: "timesheet-approvals", version: config.version,
         allowedModes: ["project", "payroll"], mode: pageMode
