@@ -244,14 +244,16 @@
             "<option value='needs'" + (filter === "needs" ? " selected" : "") + ">Needs approval</option>" +
             "<option value='approved'" + (filter === "approved" ? " selected" : "") + ">Approved</option>" +
             "</select></label><span class='approval-employee-week-total'>Entered: " + totalHours(allEntries).toFixed(1) + " hrs</span></div>";
-        html += "<div class='approval-employee-daily' role='group' aria-label='Daily entered hours for " + esc(employee.resourceName) + "'>";
-        html += "<span class='approval-daily-label'>Entered hours by day</span>";
+        html += "<div class='approval-employee-daily table-responsive'><table class='timesheet-grid approval-daily-table' aria-label='Entered hours by day for " + esc(employee.resourceName) + "'>" +
+            "<colgroup><col class='ts-col-code'><col class='ts-col-task'>";
+        for (var col = 0; col < 7; col++) { html += "<col class='ts-col-day'>"; }
+        html += "<col class='ts-col-total'></colgroup><tbody><tr><th colspan='2' class='approval-daily-label'>Entered hours by day</th>";
         for (var i = 0; i < 7; i++) {
             var d = new Date(period.start); d.setDate(d.getDate() + i);
-            html += "<span class='approval-daily-hour' title='" + days[i] + " entered hours'>" + days[i] + " <strong>" +
-                employeeDailyHours(allEntries, d).toFixed(1) + "</strong></span>";
+            html += "<td class='approval-daily-hour ts-col-day' title='" + days[i] + " entered hours'><span class='approval-daily-day'>" + days[i] +
+                "</span><strong>" + employeeDailyHours(allEntries, d).toFixed(1) + "</strong></td>";
         }
-        html += "<span class='approval-daily-total' title='Total entered hours'>" + totalHours(allEntries).toFixed(1) + "</span></div>";
+        html += "<td class='approval-daily-total ts-col-total' title='Total entered hours'>" + totalHours(allEntries).toFixed(1) + "</td></tr></tbody></table></div>";
         html += "<div class='approval-employee-body'" + (collapsed ? " hidden" : "") + ">";
         if (shownEntries.length) { html += tableBody(state, shownEntries); }
         else { html += "<div class='empty-state'>No entries match this employee filter.</div>"; }
@@ -318,8 +320,8 @@
         });
         $(".approval-group-select").off("change.approvals").on("change.approvals", function () {
             var index = Number($(this).attr("data-group-index"));
-            var groups = groupEmployees(renderedEntries(state));
-            if (groups[index]) { setEntriesSelected(state, groups[index].entries, this.checked); }
+            var groups = groupEmployees(visibleEntries(state));
+            if (groups[index]) { setEntriesSelected(state, groups[index].entries.filter(function (entry) { return matchesEmployeeFilter(state, entry); }), this.checked); }
             render(state);
         });
         $(".approval-entry-select").off("change.approvals").on("change.approvals", function () {
@@ -330,10 +332,10 @@
         $(".approval-row-select").off("change.approvals").on("change.approvals", function () {
             var key = String($(this).attr("data-row-key")), checked = this.checked;
             var index = Number($(this).closest(".project-card").attr("data-group-index"));
-            var groups = groupEmployees(renderedEntries(state));
+            var groups = groupEmployees(visibleEntries(state));
             if (groups[index]) {
                 groupRows(groups[index].entries).forEach(function (row) {
-                    if (row.key === key) { setEntriesSelected(state, row.entries, checked); }
+                    if (row.key === key) { setEntriesSelected(state, row.entries.filter(function (entry) { return matchesEmployeeFilter(state, entry); }), checked); }
                 });
             }
             render(state);
