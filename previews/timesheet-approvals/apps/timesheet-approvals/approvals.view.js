@@ -17,6 +17,10 @@
     function regularHours(entries) { return entries.reduce(function (sum, entry) { return sum + Number(entry.standardHours || 0); }, 0); }
     function overtimeHours(entries) { return entries.reduce(function (sum, entry) { return sum + Number(entry.overtimeHours || 0); }, 0); }
     function isEligible(state, entry) { return state.view === "payroll" ? entry.payrollEligible : entry.projectEligible && !entry.approved && !entry.payrollApproved; }
+    // "Approved" refers to the selected approval stage, not either stage indiscriminately.
+    function isApprovedForView(state, entry) {
+        return state.view === "payroll" ? entry.payrollApproved : (entry.approved || entry.payrollApproved);
+    }
 
     function visibleEntries(state) {
         var filter = $("#approvalStatusFilter").val() || "needs";
@@ -24,7 +28,7 @@
         return state.entries.filter(function (entry) {
             if (state.view === "project" && !entry.projectEligible) { return false; }
             if (filter === "needs" && !isEligible(state, entry)) { return false; }
-            if (filter === "approved" && !entry.approved && !entry.payrollApproved) { return false; }
+            if (filter === "approved" && !isApprovedForView(state, entry)) { return false; }
             if (search) {
                 var hay = [entry.resourceName, entry.projectCode, entry.projectDescription, entry.taskName].join(" ").toLowerCase();
                 if (hay.indexOf(search) < 0) { return false; }
@@ -55,7 +59,7 @@
     function matchesEmployeeFilter(state, entry) {
         var value = employeeFilterValue(employeeKey(entry));
         return value === "all" || (value === "needs" && isEligible(state, entry)) ||
-            (value === "approved" && (entry.approved || entry.payrollApproved));
+            (value === "approved" && isApprovedForView(state, entry));
     }
     function renderedEntries(state) {
         return visibleEntries(state).filter(function (entry) { return matchesEmployeeFilter(state, entry); });
