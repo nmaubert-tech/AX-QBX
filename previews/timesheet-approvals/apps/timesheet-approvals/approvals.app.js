@@ -28,8 +28,19 @@
         return;
     }
 
-    var context = global.AxialQB.context.create({ application: "timesheet-approvals", version: config.version, allowedModes: ["project", "payroll"], mode: "project" });
-    var state = { config: config, context: context, user: null, periods: [], currentIndex: 0, view: "project", entries: [], selected: {}, isPayrollApprover: false };
+    // The URL selects the review workflow. Missing or invalid mode defaults to Payroll.
+    // The mode is fixed for the lifetime of this page, not controlled by a dropdown.
+    function initialMode() {
+        var requested = new URLSearchParams(global.location.search || "").get("mode");
+        return String(requested || "").toLowerCase() === "project" ? "project" : "payroll";
+    }
+    var pageMode = initialMode();
+    var context = global.AxialQB.context.create({
+        application: "timesheet-approvals", version: config.version,
+        allowedModes: ["project", "payroll"], mode: pageMode
+    });
+    var state = { config: config, context: context, user: null, periods: [], currentIndex: 0,
+        view: pageMode, entries: [], selected: {}, isPayrollApprover: false };
 
     function logger() { return global.AxialQB.logger; }
     function revealPage() {
@@ -112,13 +123,6 @@
         reload();
     }
 
-    function changeView(view) {
-        if (view !== "project" && view !== "payroll") { return; }
-        state.view = view;
-        $("#approvalView").val(view);
-        reload();
-    }
-
     function approveSelected() {
         var selected = global.AxialTimesheetApprovalsData.selectedEntries(state);
         if (!selected.length) { return; }
@@ -160,7 +164,7 @@
         $("#prevWeekBtn").on("click", function () { changeWeek(state.currentIndex + 1); });
         $("#nextWeekBtn").on("click", function () { changeWeek(state.currentIndex - 1); });
         $("#todayBtn").on("click", function () { changeWeek(Number(config.weekRange.future || 0)); });
-        $("#approvalView").on("change", function () { changeView(this.value); });
+
         $("#approvalStatusFilter,#approvalSearch").on("change input", function () { clearSelection(); global.AxialTimesheetApprovalsView.render(state); });
         $("#approveSelectedButton").on("click", approveSelected);
         $("#returnSelectedButton").on("click", openReturn);
@@ -179,6 +183,11 @@
         if (root) { root.style.visibility = "hidden"; }
         setBusy("Loading Timesheet Approvals…");
         return installPreviewStyles().then(function () {
+            // The old selector may still exist in an earlier Quickbase HTML page.
+            // Remove it rather than allowing a visual mode switch without a URL reload.
+            $("#approvalView").remove();
+            // Show the full timecard by default; filters only narrow the display.
+            $("#approvalStatusFilter").val("all");
             initWeeks();
             bind();
             setBusy("Resolving Quickbase user…");
