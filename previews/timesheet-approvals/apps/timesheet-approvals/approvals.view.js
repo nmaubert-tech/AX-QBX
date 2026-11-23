@@ -3,6 +3,10 @@
 
     var $ = global.jQuery;
     var days = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+    // Presentation state persists across refreshes within the current page session.
+    var collapsedEmployees = {};
+    var employeeFilters = {};
+    var collapsedAll = false;
 
     function esc(value) { return $("<div>").text(value == null ? "" : String(value)).html(); }
     function dateKey(date) {
@@ -44,6 +48,26 @@
             "<input type='checkbox' class='" + className + "' data-group-index='" + groupIndex + "'" +
             (selected === eligible.length ? " checked" : "") +
             " aria-label='" + esc(label) + "'><span>" + selected + "/" + eligible.length + " selected</span></label>";
+    }
+
+    function employeeKey(entry) { return String(entry.resourceId || entry.resourceName || "Employee"); }
+    function employeeFilterValue(key) { return employeeFilters[key] || "all"; }
+    function matchesEmployeeFilter(state, entry) {
+        var value = employeeFilterValue(employeeKey(entry));
+        return value === "all" || (value === "needs" && isEligible(state, entry)) ||
+            (value === "approved" && (entry.approved || entry.payrollApproved));
+    }
+    function renderedEntries(state) {
+        return visibleEntries(state).filter(function (entry) { return matchesEmployeeFilter(state, entry); });
+    }
+    function employeeDailyHours(entries, date) {
+        var key = dateKey(date);
+        return totalHours(entries.filter(function (entry) { return dateKey(entry.date) === key; }));
+    }
+    function clearEmployeeSelection(state, key) {
+        state.entries.forEach(function (entry) {
+            if (employeeKey(entry) === key) { delete state.selected[entry.id]; }
+        });
     }
 
     function groupProjects(entries) {
@@ -94,7 +118,7 @@
         html += "<col class='ts-col-code'><col class='ts-col-task'>";
         for (var c = 0; c < 7; c++) { html += "<col class='ts-col-day'>"; }
         html += "<col class='ts-col-total'></colgroup><thead><tr>";
-        var visible = visibleEntries(state), eligible = eligibleEntries(state, visible);
+        var visible = renderedEntries(state), eligible = eligibleEntries(state, visible);
         var selected = eligible.filter(function (entry) { return !!state.selected[entry.id]; }).length;
         html += "<th class='ts-col-code'><label class='approval-select-all-label' title='Select all eligible visible entries'>" +
             "<input id='approvalSelectAll' type='checkbox' aria-label='Select all eligible visible time entries'" +
@@ -107,7 +131,10 @@
             if (d.getTime() === today.getTime()) { classes += " today-col"; }
             html += "<th class='day-col" + classes + "'><small>" + days[i] + "</small><b>" + d.getDate() + "</b></th>";
         }
-        html += "<th>Total</th></tr></thead></table></div>";
+        html += "<th>Total</th></tr></thead></table>" +
+            "<div class=\'approval-card-toolbar\'><button type=\'button\' id=\'approvalCollapseAll\' aria-label=\'Collapse all employee timecards\'>Collapse All</button>" +
+            "<button type=\'button\' id=\'approvalExpandAll\' aria-label=\'Expand all employee timecards\'>Expand All</button>" +
+            "<span>Employee filters affect the displayed time entries; daily totals show all loaded entered hours.</span></div></div>";
         return html;
     }
 
@@ -167,7 +194,7 @@
     function rowHtml(state, row) {
         var p = state.periods[state.currentIndex], eligible = row.entries.filter(function (entry) { return isEligible(state, entry); });
         var selectedAll = eligible.length && eligible.every(function (entry) { return !!state.selected[entry.id]; });
-        var primary = state.view === "payroll" ? row.projectCode : row.resourceName;
+        var primary = row.projectCode;
         var secondary = row.taskName;
         var html = "<tr data-row-key='" + esc(row.key) + "'><td class='ts-col-code'>";
         if (eligible.length) { html += "<input class='approval-row-select' type='checkbox' data-row-key='" + esc(row.key) + "' " + (selectedAll ? "checked" : "") + ">"; }
@@ -197,28 +224,55 @@
     }
 
     function employeeCard(state, employee, index) {
-        var pmPending = employee.entries.filter(function (entry) { return !entry.approved && !entry.payrollApproved; }).length;
-        var html = "<section class='project-card' data-group-index='" + index + "'>";
-        html += "<div class='project-card__header approval-card-header'><div class='approval-card-identity'>" +
-            groupSelection(state, employee.entries, "Select eligible time for " + employee.resourceName, "approval-group-select", index) +
-            "<strong>" + esc(employee.resourceName) + "</strong></div><span class='approval-group-summary'>Regular " +
-            regularHours(employee.entries).toFixed(1) + " · OT " + overtimeHours(employee.entries).toFixed(1) +
-            " · " + pmPending + " PM pending</span></div>";
-        html += tableBody(state, employee.entries) + "</section>";
+        var key = employee.key, allEntries = state.entries.filter(function (entry) {
+            return employeeKey(entry) === key && (state.view !== "project" || entry.projectEligible);
+        });
+        var shownEntries = employee.entries;
+        var collapsed = !!collapsedEmployees[key];
+        var period = state.periods[state.currentIndex];
+        var filter = employeeFilterValue(key);
+        var html = "<section class='project-card approval-employee-card' data-employee-key='" + esc(key) +
+            "' data-group-index='" + index + "'>";
+        html += "<div class='approval-employee-toolbar'><button type='button' class='approval-employee-toggle' data-employee-key='" + esc(key) +
+            "' aria-expanded='" + (!collapsed) + "' aria-label='" + (collapsed ? "Expand " : "Collapse ") +
+            esc(employee.resourceName) + " timecard'><span aria-hidden='true'>" + (collapsed ? "&#9656;" : "&#9662;") +
+            "</span></button><strong class='approval-employee-name'>" + esc(employee.resourceName) + "</strong>" +
+            groupSelection(state, shownEntries, "Select eligible entries for " + employee.resourceName, "approval-group-select", index) +
+            "<label class='approval-employee-filter-label'>Show <select class='approval-employee-filter' data-employee-key='" + esc(key) +
+            "' aria-label='Filter entries for " + esc(employee.resourceName) + "'>" +
+            "<option value='all'" + (filter === "all" ? " selected" : "") + ">All entries</option>" +
+            "<option value='needs'" + (filter === "needs" ? " selected" : "") + ">Needs approval</option>" +
+            "<option value='approved'" + (filter === "approved" ? " selected" : "") + ">Approved</option>" +
+            "</select></label><span class='approval-employee-week-total'>Entered: " + totalHours(allEntries).toFixed(1) + " hrs</span></div>";
+        html += "<div class='approval-employee-daily' role='group' aria-label='Daily entered hours for " + esc(employee.resourceName) + "'>";
+        html += "<span class='approval-daily-label'>Entered hours by day</span>";
+        for (var i = 0; i < 7; i++) {
+            var d = new Date(period.start); d.setDate(d.getDate() + i);
+            html += "<span class='approval-daily-hour' title='" + days[i] + " entered hours'>" + days[i] + " <strong>" +
+                employeeDailyHours(allEntries, d).toFixed(1) + "</strong></span>";
+        }
+        html += "<span class='approval-daily-total' title='Total entered hours'>" + totalHours(allEntries).toFixed(1) + "</span></div>";
+        html += "<div class='approval-employee-body'" + (collapsed ? " hidden" : "") + ">";
+        if (shownEntries.length) { html += tableBody(state, shownEntries); }
+        else { html += "<div class='empty-state'>No entries match this employee filter.</div>"; }
+        html += "</div></section>";
         return html;
     }
 
     function render(state) {
-        var entries = visibleEntries(state), html = weekHeader(state);
-        if (!entries.length) {
+        var visible = visibleEntries(state), shown = renderedEntries(state), html = weekHeader(state);
+        if (!visible.length) {
             html += "<div class='empty-state'>No time entries match the current approval view.</div>";
-        } else if (state.view === "payroll") {
-            groupEmployees(entries).forEach(function (employee, index) { html += employeeCard(state, employee, index); });
         } else {
-            groupProjects(entries).forEach(function (project, index) { html += projectCard(state, project, index); });
+            // All loaded employees with entries in the current global view retain their
+            // timecard even when their independent filter hides every detail row.
+            groupEmployees(visible).forEach(function (employee, index) {
+                employee.entries = employee.entries.filter(function (entry) { return matchesEmployeeFilter(state, entry); });
+                html += employeeCard(state, employee, index);
+            });
         }
         $("#timesheet-container").html(html);
-        updateStatus(state, entries);
+        updateStatus(state, shown);
         bindRendered(state);
     }
 
@@ -233,13 +287,38 @@
     }
 
     function bindRendered(state) {
+        $("#approvalCollapseAll").off("click.approvals").on("click.approvals", function () {
+            groupEmployees(visibleEntries(state)).forEach(function (employee) {
+                collapsedEmployees[employee.key] = true;
+                clearEmployeeSelection(state, employee.key);
+            });
+            collapsedAll = true;
+            render(state);
+        });
+        $("#approvalExpandAll").off("click.approvals").on("click.approvals", function () {
+            groupEmployees(visibleEntries(state)).forEach(function (employee) { collapsedEmployees[employee.key] = false; });
+            collapsedAll = false;
+            render(state);
+        });
+        $(".approval-employee-toggle").off("click.approvals").on("click.approvals", function () {
+            var key = String($(this).attr("data-employee-key"));
+            collapsedEmployees[key] = !collapsedEmployees[key];
+            if (collapsedEmployees[key]) { clearEmployeeSelection(state, key); }
+            render(state);
+        });
+        $(".approval-employee-filter").off("change.approvals").on("change.approvals", function () {
+            var key = String($(this).attr("data-employee-key"));
+            employeeFilters[key] = this.value;
+            clearEmployeeSelection(state, key);
+            render(state);
+        });
         $("#approvalSelectAll").off("change.approvals").on("change.approvals", function () {
-            setEntriesSelected(state, visibleEntries(state), this.checked);
+            setEntriesSelected(state, renderedEntries(state), this.checked);
             render(state);
         });
         $(".approval-group-select").off("change.approvals").on("change.approvals", function () {
             var index = Number($(this).attr("data-group-index"));
-            var groups = state.view === "payroll" ? groupEmployees(visibleEntries(state)) : groupProjects(visibleEntries(state));
+            var groups = groupEmployees(renderedEntries(state));
             if (groups[index]) { setEntriesSelected(state, groups[index].entries, this.checked); }
             render(state);
         });
@@ -251,7 +330,7 @@
         $(".approval-row-select").off("change.approvals").on("change.approvals", function () {
             var key = String($(this).attr("data-row-key")), checked = this.checked;
             var index = Number($(this).closest(".project-card").attr("data-group-index"));
-            var groups = state.view === "payroll" ? groupEmployees(visibleEntries(state)) : groupProjects(visibleEntries(state));
+            var groups = groupEmployees(renderedEntries(state));
             if (groups[index]) {
                 groupRows(groups[index].entries).forEach(function (row) {
                     if (row.key === key) { setEntriesSelected(state, row.entries, checked); }
