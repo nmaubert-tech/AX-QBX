@@ -124,10 +124,10 @@
         var c = state.config, e = c.fields.entries, resource = state.context.selectedResourceId;
         var entries = {};
         if (!resource || !state.periods.length) { state.entries = entries; return Promise.resolve(entries); }
-        // Fetch only the selected week. A multiweek query was unnecessarily large
-        // and could return an incomplete selection of the currently visible week.
-        var oldest = state.currentPeriod.start.toDateString();
-        var newest = state.currentPeriod.end.toDateString();
+        // Fetch the configured date range once for the selected employee.
+        // Week navigation filters this in-memory dataset without Quickbase requests.
+        var oldest = state.periods[state.periods.length - 1].start.toDateString();
+        var newest = state.periods[0].end.toDateString();
         var query = "{" + e.resource + ".TV.'" + resource + "'}AND{" + e.date + ".LTE.'" + newest + "'}AND{" + e.date + ".GTE.'" + oldest + "'}";
         var clist = [e.id,e.task,e.standardHours,e.standardNote,e.overtimeHours,e.internalComment,e.date,e.approved,e.payrollApproved,e.resource].join(".");
         return global.AxialQB.quickbase.doQuery({ dbid: alias(c.tableAliases.timeEntries), appToken:c.appToken, query:query, clist:clist, slist:e.task, eventName:"timesheet.entries.failed" }).then(function (result) {
