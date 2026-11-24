@@ -193,18 +193,22 @@
             $("#approvalStatusFilter").val("all");
             initWeeks();
             bind();
-            setBusy("Resolving Quickbase user…");
-            return global.AxialQB.quickbase.getCurrentUserInfo(config.appToken);
-        }).then(function (user) {
+            // The styled shell is ready. Reveal it before network-bound Quickbase requests.
+            if (root) { root.style.visibility = ""; }
+            revealPage();
+            setBusy("Loading Timesheet Approvals…");
+            return Promise.all([
+                global.AxialQB.quickbase.getCurrentUserInfo(config.appToken),
+                global.AxialTimesheetApprovalsData.resolveTimeEntriesTable(state)
+            ]);
+        }).then(function (results) {
+            var user = results[0];
             state.user = user;
             context.loggedInUserId = user.id;
             state.isPayrollApprover = matchesAllowedUser(user);
             if (!global.AxialTimesheetApprovalsData.returnSupported(state)) {
                 $("#returnSelectedButton").prop("disabled", true).attr("title", "Return workflow requires configured audit fields.");
             }
-            return global.AxialTimesheetApprovalsData.resolveTimeEntriesTable(state);
-        }).then(function () {
-            if (root) { root.style.visibility = ""; }
             return reload();
         }).then(function () {
             revealPage();
