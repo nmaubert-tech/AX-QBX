@@ -4,19 +4,24 @@
     function f(record, id) { return global.jQuery(record).find("f#" + id).text(); }
     function num(value) { var n = parseFloat(value); return isNaN(n) ? 0 : n; }
     function qbDate(value) {
-        if (!value) { return null; }
-        var d;
-        if (/^\d+$/.test(String(value))) {
-            d = new Date(parseInt(value, 10));
-            if (isNaN(d.getTime())) { return null; }
-            d = new Date(d.getTime() + (d.getTimezoneOffset() * 60000));
-            d.setHours(0,0,0,0);
-            return d;
+        if (value == null || String(value).trim() === "") { return null; }
+        var raw = String(value).trim(), match, date, year, month, day;
+        // Date-only Quickbase timestamps are UTC midnight. Read the UTC calendar
+        // components, then create a local date for timesheet column matching.
+        if (/^\\d+$/.test(raw)) {
+            date = new Date(Number(raw));
+            return isNaN(date.getTime()) ? null :
+                new Date(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate());
         }
-        d = new Date(value);
-        if (isNaN(d.getTime())) { return null; }
-        d.setHours(0,0,0,0);
-        return d;
+        match = /^(\\d{4})-(\\d{2})-(\\d{2})(?:$|[T ])/.exec(raw);
+        if (match) {
+            year=Number(match[1]);month=Number(match[2]);day=Number(match[3]);
+            date=new Date(year,month-1,day);
+            return date.getFullYear()===year&&date.getMonth()===month-1&&date.getDate()===day?date:null;
+        }
+        date = new Date(raw);
+        return isNaN(date.getTime()) ? null :
+            new Date(date.getFullYear(),date.getMonth(),date.getDate());
     }
     function alias(name) {
         if (!global.aliasMap || !global.aliasMap[name]) { throw new Error("Missing Quickbase alias: " + name); }
