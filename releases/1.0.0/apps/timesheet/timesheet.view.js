@@ -13,7 +13,28 @@ function ensureShell(){var main=$(".ts-main"),footer=$("#timesheet-daily-totals"
 function syncFixedFooter(){var main=$(".ts-main")[0],footer=$("#timesheet-daily-totals"),table=footer.find("table");if(!main||!table.length){return;}var horizontalPadding=global.innerWidth<=900?6:24,width=Math.max(1114,main.clientWidth-horizontalPadding),scrollLeft=main.scrollLeft;table.css({width:width+"px",minWidth:width+"px",transform:"translateX("+(-scrollLeft)+"px)"});footer.find(".ts-footer-code,.ts-footer-label").css("transform","translateX("+scrollLeft+"px)");}
 function entriesThisWeek(state,task){return(state.entries[task.id]||[]).some(function(e){return e.date&&e.date>=state.currentPeriod.start&&e.date<=state.currentPeriod.end;});}
 function historicTask(state,task){return task.historicalOnly||!visible(task,state.currentPeriod,state.config);}
-function render(state){ensureShell();var root=$("#timesheet-container").empty(),groups={};$("#timesheet-week-header").html(weekHeader(state));$("#timesheet-daily-totals").html(totals(state));state.tasks.forEach(function(t){if(visible(t,state.currentPeriod,state.config)||entriesThisWeek(state,t)){(groups[t.projectType]=groups[t.projectType]||[]).push(t);}});Object.keys(groups).forEach(function(type){root.append(card(state,type,groups[type]));});if((state.unresolvedTaskIds||[]).length){root.prepend($("<div class='error-state'>").text("Some entered time could not be displayed because its linked task record is unavailable: "+state.unresolvedTaskIds.join(", ")+". No data has been changed."));}bind(state);refresh(state);syncFixedFooter();}
+function render(state){ensureShell();var root=$("#timesheet-container").empty(),groups={};$("#timesheet-week-header").html(weekHeader(state));$("#timesheet-daily-totals").html(totals(state));state.tasks.forEach(function(t){if(visible(t,state.currentPeriod,state.config)||entriesThisWeek(state,t)){(groups[t.projectType]=groups[t.projectType]||[]).push(t);}});Object.keys(groups).forEach(function(type){root.append(card(state,type,groups[type]));});if((state.unresolvedTaskIds||[]).length){root.prepend($("<div class='error-state'>").text("Some entered time could not be displayed because its linked task record is unavailable: "+state.unresolvedTaskIds.join(", ")+". No data has been changed."));}bind(state);refresh(state);
+var expectedReg=0,expectedOt=0,expectedCount=0,invalidDateCount=0;
+Object.keys(state.entries||{}).forEach(function(id){
+ (state.entries[id]||[]).forEach(function(e){
+  if(!e.date){invalidDateCount++;return;}
+  if(e.date>=state.currentPeriod.start&&e.date<=state.currentPeriod.end){
+   expectedCount++;expectedReg+=parseFloat(e.standardHours)||0;expectedOt+=parseFloat(e.overtimeHours)||0;
+  }
+ });
+});
+var displayedReg=parseFloat($("#regularWeekTotal").text())||0;
+var displayedOt=parseFloat($("#overtimeWeekTotal").text())||0;
+if(Math.abs(expectedReg-displayedReg)>0.005||Math.abs(expectedOt-displayedOt)>0.005||invalidDateCount){
+ root.prepend($("<div class='error-state' role='alert'>").text(
+  "Timesheet reconciliation warning: Quickbase loaded "+expectedCount+
+  " records ("+fmt(expectedReg)+" regular, "+fmt(expectedOt)+" overtime), but displayed "+
+  fmt(displayedReg)+" regular and "+fmt(displayedOt)+" overtime."+
+  (invalidDateCount?" "+invalidDateCount+" records have invalid dates.":"")+
+  " Do not approve or rely on the displayed totals until reconciled."
+ ));
+}
+syncFixedFooter();}
 function weekHeader(state){var h="<table aria-label='Timesheet week columns'>"+colgroup()+"<thead><tr><th class='ts-col-code'>Code</th><th class='ts-col-task'>Project / Task</th>";for(var i=0;i<7;i++){var d=new Date(state.currentPeriod.start);d.setDate(d.getDate()+i);h+="<th class='day-col ts-col-day"+dayClass(d)+"' data-day='"+i+"'><small>"+dayNames[d.getDay()]+"</small><b>"+d.getDate()+"</b></th>";}return h+="<th class='ts-col-budget'>Remaining</th><th class='ts-col-total'>Total</th></tr></thead></table>";}
 function card(state,type,tasks){var key=String(type),collapsed=!!collapsedGroups[key],h="<section class='project-card"+(collapsed?" is-collapsed":"")+"' data-group='"+esc(key)+"'><button type='button' class='project-card__header' aria-expanded='"+(!collapsed)+"'><span class='project-card__title'><span class='project-card__chevron' aria-hidden='true'>"+(collapsed?"&#9656;":"&#9662;")+"</span><strong>"+esc(type)+"</strong></span><span class='project-card__count'>"+tasks.length+" task"+(tasks.length===1?"":"s")+"</span></button><div class='project-card__body'"+(collapsed?" style='display:none'":"")+"><div class='table-responsive'><table class='timesheet-grid'>"+colgroup()+"<tbody>";tasks.forEach(function(t){h+=row(state,t);});return h+="</tbody></table></div></div></section>";}
 function noteButton(state,e,kind,date){var isExternal=kind==="standardNote",hasText=!!(isExternal?e.standardNote:e.internalComment),images=state.config.images||{},src=isExternal?(hasText?images.standardNoteFilled:images.standardNoteEmpty):(hasText?images.internalNoteFilled:images.internalNoteEmpty),title=isExternal?(hasText?"Edit external note":"Add external note"):(hasText?"Edit internal comment":"Add internal comment");return "<button type='button' class='note-btn"+(hasText?" has-note":" is-empty")+"' data-kind='"+kind+"' data-date='"+date.getTime()+"' title='"+title+"' aria-label='"+title+"'><img src='"+esc(src||"")+"' alt=''></button>";}
