@@ -7,8 +7,44 @@ function periods(){var future=config.weekRange.future,past=config.weekRange.past
 function optionLabel(p){return p.start.toDateString()+" - "+p.end.toDateString();}
 function initWeeks(){periods();var sel=global.jQuery("#weekSelector").empty();state.periods.forEach(function(p,i){sel.append("<option value='"+i+"'>"+optionLabel(p)+"</option>");});sel.val(String(state.currentIndex)).off("change.ts").on("change.ts",function(){changeWeek(parseInt(this.value,10));});}
 function setBusy(message){var node=global.jQuery("#loadingState");if(!node.length){return;}node.text(message||"").toggle(!!message);}
-function chooseResource(){if(context.mode==="self"){context.selectedResourceId=context.loggedInUserId;context.selectedResourceName=context.loggedInUserName||"My Timesheet";global.jQuery("#statusResourceName").text(context.selectedResourceName);return Promise.resolve();}return global.AxialTimesheetData.loadResources(state).then(function(rows){var requested=context.requestedResourceId,selected=rows.filter(function(r){return String(r.id)===String(requested);})[0];if(selected){context.selectedResourceId=selected.id;context.selectedResourceName=selected.name;}renderResourceSelector();});}
-function renderResourceSelector(){global.jQuery("#resourceNav").show();var sel=global.jQuery("#resourceSelector").empty().append("<option value=''>Select Employee</option>");state.resources.forEach(function(r){sel.append("<option value='"+r.id+"'>"+r.name+"</option>");});sel.val(context.selectedResourceId||"").off("change.ts").on("change.ts",function(){var id=this.value;if(!id){return;}if(global.AxialTimesheetView.countDirty(state)&&!global.confirm("You have unsaved changes. Change employee anyway?")){this.value=context.selectedResourceId||"";return;}var r=state.resources.filter(function(x){return String(x.id)===String(id);})[0];if(!r){return;}context.selectedResourceId=r.id;context.selectedResourceName=r.name;global.jQuery("#statusResourceName").text(r.name);reloadData();});}
+function chooseResource(){if(context.mode==="self"){context.selectedResourceId=context.loggedInUserId;context.selectedResourceName=context.loggedInUserName||"My Timesheet";global.jQuery("#statusResourceName").text(context.selectedResourceName);return Promise.resolve();}return global.AxialTimesheetData.loadResources(state).then(function(){
+  // Resource mode begins unselected. A URL resourceId does not implicitly
+  // initiate a timesheet query: only the employee dropdown can do that.
+  context.selectedResourceId=null;
+  context.selectedResourceName=null;
+  state.tasks=[];state.entries={};state.unresolvedTaskIds=[];
+  renderResourceSelector();
+  global.jQuery("#statusResourceName").text("Select Employee");
+  global.jQuery("#timesheet-container").html("<div class='empty-state'>Select an employee to load the timesheet.</div>");
+  global.jQuery("#saveButton").prop("disabled",true);
+});}
+function renderResourceSelector(){
+global.jQuery("#resourceNav").show();
+var sel=global.jQuery("#resourceSelector").empty().append("<option value=''>Select Employee</option>");
+state.resources.forEach(function(r){sel.append(global.jQuery("<option>").val(r.id).text(r.name));});
+sel.val("").off("change.ts").on("change.ts",function(){
+ var id=this.value;
+ if(global.AxialTimesheetView.countDirty(state)&&!global.confirm("You have unsaved changes. Change employee anyway?")){
+  this.value=context.selectedResourceId||"";return;
+ }
+ var selected=state.resources.filter(function(r){return String(r.id)===String(id);})[0];
+ context.selectedResourceId=selected?selected.id:null;
+ context.selectedResourceName=selected?selected.name:null;
+ state.tasks=[];state.entries={};state.unresolvedTaskIds=[];
+ context.taskCount=0;context.entryCount=0;
+ global.jQuery("#statusResourceName").text(selected?selected.name:"Select Employee");
+ global.jQuery("#statusWeekTotal,#statusOvertimeTotal").text("0");
+ global.jQuery("#saveButton").prop("disabled",true);
+ if(!selected){
+  setBusy("");
+  global.jQuery("#timesheet-container").html("<div class='empty-state'>Select an employee to load the timesheet.</div>");
+  updateDiagnostics();return;
+ }
+ global.jQuery("#timesheet-container").empty();
+ setBusy("Loading "+selected.name+" timesheet...");
+ reloadData();
+});
+}
 function timedStep(name,callback){
 var begin=global.performance&&global.performance.now?global.performance.now():Date.now();
 return Promise.resolve().then(callback).then(function(value){
@@ -41,7 +77,7 @@ function applicationDbid(){var parts=(global.location.pathname||"").split("/").f
 function suppliedAliases(){var out={};if(!config.tableDbids){return out;}Object.keys(config.tableAliases||{}).forEach(function(key){var alias=config.tableAliases[key],dbid=config.tableDbids[key];if(alias&&dbid){out[alias]=dbid;}});return out;}
 function validateAliases(aliases){var required=[config.tableAliases.tasks,config.tableAliases.timeEntries];if(context.mode==="resource"){required.push(config.tableAliases.resources);}var missing=required.filter(function(name){return !aliases[name];});if(missing.length){throw new Error("Quickbase table aliases could not be resolved: "+missing.join(", "));}}
 function revealReady(){if(global.document&&global.document.documentElement){global.document.documentElement.classList.add("axial-timesheet-ready");}}
-function start(){global.AxialQB.logger.configure({contextProvider:function(){return context;}});global.AxialQB.logger.installGlobalHandlers();initWeeks();global.jQuery("#prevWeekBtn").on("click",function(){shiftWeek(1);});global.jQuery("#nextWeekBtn").on("click",function(){shiftWeek(-1);});global.jQuery("#todayBtn").on("click",function(){global.jQuery("#weekSelector").val(String(config.weekRange.future)).trigger("change");});global.jQuery("#saveButton").on("click",save);global.jQuery("#diagnosticsButton").on("click",function(){updateDiagnostics();global.jQuery("#diagnosticsPanel").toggle();});setBusy("Loading employee timesheet...");revealReady();Promise.all([global.AxialQB.quickbase.getCurrentUserProfile(config.appToken),global.AxialQB.quickbase.getAppTables(applicationDbid(),config.appToken,suppliedAliases())]).then(function(results){var profile=results[0];context.loggedInUserId=profile.id;context.loggedInUserName=profile.name;global.aliasMap=results[1]||{};validateAliases(global.aliasMap);return chooseResource();}).then(reloadData).then(function(){revealReady();}).catch(function(error){revealReady();setBusy("");global.AxialQB.logger.error("timesheet.bootstrap.failed",error.message,error.details||{});global.jQuery("#timesheet-container").html("<div class='error-state'>Timesheet could not initialize. "+error.message+" Correlation ID: "+context.correlationId+"</div>");updateDiagnostics();});}
+function start(){global.AxialQB.logger.configure({contextProvider:function(){return context;}});global.AxialQB.logger.installGlobalHandlers();initWeeks();global.jQuery("#prevWeekBtn").on("click",function(){shiftWeek(1);});global.jQuery("#nextWeekBtn").on("click",function(){shiftWeek(-1);});global.jQuery("#todayBtn").on("click",function(){global.jQuery("#weekSelector").val(String(config.weekRange.future)).trigger("change");});global.jQuery("#saveButton").on("click",save);global.jQuery("#diagnosticsButton").on("click",function(){updateDiagnostics();global.jQuery("#diagnosticsPanel").toggle();});setBusy("Loading employee timesheet...");revealReady();Promise.all([global.AxialQB.quickbase.getCurrentUserProfile(config.appToken),global.AxialQB.quickbase.getAppTables(applicationDbid(),config.appToken,suppliedAliases())]).then(function(results){var profile=results[0];context.loggedInUserId=profile.id;context.loggedInUserName=profile.name;global.aliasMap=results[1]||{};validateAliases(global.aliasMap);return chooseResource();}).then(function(){if(context.mode==="self"){return reloadData();}setBusy("");}).then(function(){revealReady();}).catch(function(error){revealReady();setBusy("");global.AxialQB.logger.error("timesheet.bootstrap.failed",error.message,error.details||{});global.jQuery("#timesheet-container").html("<div class='error-state'>Timesheet could not initialize. "+error.message+" Correlation ID: "+context.correlationId+"</div>");updateDiagnostics();});}
 global.AxialTimesheet={state:state,start:start,save:save,reload:reloadData,updateDiagnostics:updateDiagnostics};
 if(document.readyState==="loading"){document.addEventListener("DOMContentLoaded",start);}else{start();}
 }(window));
