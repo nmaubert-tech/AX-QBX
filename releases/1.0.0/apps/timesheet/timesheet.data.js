@@ -34,18 +34,69 @@
         });
     }
 
+    function taskFromRecord(state, record) {
+        var t = state.config.fields.tasks;
+        return {
+            id:f(record,t.id), taskName:f(record,t.taskName), projectCode:f(record,t.projectCode),
+            projectDescription:f(record,t.projectDescription), budgetedHours:num(f(record,t.budgetedHours)),
+            assignedHours:num(f(record,t.assignedHours)), remainingHours:num(f(record,t.remainingHours)),
+            loadedRemainingHours:num(f(record,t.remainingHours)),
+            projectType:f(record,t.projectType) || "Other",
+            startDate:qbDate(f(record,t.startDate)), endDate:qbDate(f(record,t.endDate)),
+            lastEntryDate:qbDate(f(record,t.lastEntryDate)), status:f(record,t.status),
+            allowOverbudget:f(record,t.allowOverbudget)==="1",
+            allowOvertime:f(record,t.allowOvertime)==="1", historicalOnly:false
+        };
+    }
+
     function loadTasks(state) {
         var c = state.config, t = c.fields.tasks, resource = state.context.selectedResourceId;
         if (!resource) { state.tasks = []; return Promise.resolve([]); }
         var clist = [t.id,t.taskName,t.projectCode,t.projectDescription,t.budgetedHours,t.assignedHours,t.projectType,t.startDate,t.endDate,t.status,t.remainingHours,t.allowOverbudget,t.lastEntryDate,t.allowOvertime].join(".");
         var query = "{" + t.assignedUser + ".TV.'" + resource + "'}AND{" + t.active + ".EX.'1'}";
-        return global.AxialQB.quickbase.doQuery({ dbid: alias(c.tableAliases.tasks), appToken: c.appToken, query: query, clist: clist, slist: (c.taskSortFields || []).join("."), options: "sortorder-D", eventName: "timesheet.tasks.failed" }).then(function (result) {
-            var rows = [];
-            global.jQuery(result.data).find("record").each(function () {
-                rows.push({ id:f(this,t.id), taskName:f(this,t.taskName), projectCode:f(this,t.projectCode), projectDescription:f(this,t.projectDescription), budgetedHours:num(f(this,t.budgetedHours)), assignedHours:num(f(this,t.assignedHours)), remainingHours:num(f(this,t.remainingHours)), loadedRemainingHours:num(f(this,t.remainingHours)), projectType:f(this,t.projectType) || "Other", startDate:qbDate(f(this,t.startDate)), endDate:qbDate(f(this,t.endDate)), lastEntryDate:qbDate(f(this,t.lastEntryDate)), status:f(this,t.status), allowOverbudget:f(this,t.allowOverbudget)==="1", allowOvertime:f(this,t.allowOvertime)==="1" });
+        return global.AxialQB.quickbase.doQuery({
+            dbid:alias(c.tableAliases.tasks),appToken:c.appToken,query:query,
+            clist:clist,slist:(c.taskSortFields||[]).join("."),options:"sortorder-D",
+            eventName:"timesheet.tasks.failed"
+        }).then(function(result) {
+            var rows=[], known={};
+            global.jQuery(result.data).find("record").each(function() {
+                var task=taskFromRecord(state,this);
+                if (!known[task.id]) { known[task.id]=true; rows.push(task); }
             });
-            state.tasks = rows;
-            return rows;
+
+            // Entries are loaded before tasks. Rehydrate their referenced tasks,
+            // including inactive or unassigned historical tasks, for display only.
+            var missing=Object.keys(state.entries||{}).filter(function(id) {
+                return id && !known[id] && (state.entries[id]||[]).some(function(e) { return !!e.date; });
+            });
+            var batches=[];
+            for (var i=0;i<missing.length;i+=30) { batches.push(missing.slice(i,i+30)); }
+            return batches.reduce(function(chain,ids) {
+                return chain.then(function() {
+                    var byId="(" + ids.map(function(id) {
+                        return "{" + t.id + ".EX.'" + String(id).replace(/'/g,"\\'") + "'}";
+                    }).join("OR") + ")";
+                    return global.AxialQB.quickbase.doQuery({
+                        dbid:alias(c.tableAliases.tasks),appToken:c.appToken,
+                        query:byId,clist:clist,eventName:"timesheet.historical.tasks.failed"
+                    }).then(function(result) {
+                        global.jQuery(result.data).find("record").each(function() {
+                            var task=taskFromRecord(state,this);
+                            if (!known[task.id]) {
+                                task.historicalOnly=true;
+                                known[task.id]=true; rows.push(task);
+                            }
+                        });
+                    });
+                });
+            },Promise.resolve()).then(function() {
+                // Never silently discard entries when a referenced task was deleted
+                // or the user cannot access its metadata.
+                state.unresolvedTaskIds=missing.filter(function(id) { return !known[id]; });
+                state.tasks=rows;
+                return rows;
+            });
         });
     }
 
