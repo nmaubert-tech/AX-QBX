@@ -80,25 +80,25 @@
             for (var i=0;i<missing.length;i+=30) { batches.push(missing.slice(i,i+30)); }
             // Always account for loaded entries, even if a linked Task is missing,
             // inactive, or inaccessible. Such rows are display-only.
-            return batches.reduce(function(chain,ids) {
-                return chain.then(function() {
-                    var byId="(" + ids.map(function(id) {
-                        return "{" + t.id + ".EX.'" + String(id).replace(/'/g,"\\'") + "'}";
-                    }).join("OR") + ")";
-                    return global.AxialQB.quickbase.doQuery({
-                        dbid:alias(c.tableAliases.tasks),appToken:c.appToken,
-                        query:byId,clist:clist,eventName:"timesheet.historical.tasks.failed"
-                    }).then(function(result) {
-                        global.jQuery(result.data).find("record").each(function() {
-                            var task=taskFromRecord(state,this);
-                            if (!known[task.id]) {
-                                task.historicalOnly=true;
-                                known[task.id]=true; rows.push(task);
-                            }
-                        });
+            // Independent historical-task batches can be retrieved concurrently.
+            // Do not serialize network requests; preserve each Task's read-only status.
+            return Promise.all(batches.map(function(ids) {
+                var byId="(" + ids.map(function(id) {
+                    return "{" + t.id + ".EX.'" + String(id).replace(/'/g,"\\'") + "'}";
+                }).join("OR") + ")";
+                return global.AxialQB.quickbase.doQuery({
+                    dbid:alias(c.tableAliases.tasks),appToken:c.appToken,
+                    query:byId,clist:clist,eventName:"timesheet.historical.tasks.failed"
+                }).then(function(result) {
+                    global.jQuery(result.data).find("record").each(function() {
+                        var task=taskFromRecord(state,this);
+                        if (!known[task.id]) {
+                            task.historicalOnly=true;
+                            known[task.id]=true; rows.push(task);
+                        }
                     });
                 });
-            },Promise.resolve()).then(function() {
+            })).then(function() {
                 // Never silently discard entries when a referenced task was deleted
                 // or the user cannot access its metadata.
                 state.unresolvedTaskIds=Object.keys(state.entries||{}).filter(function(id) {
