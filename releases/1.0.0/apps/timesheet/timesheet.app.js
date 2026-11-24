@@ -42,7 +42,8 @@ sel.val("").off("change.ts").on("change.ts",function(){
  }
  global.jQuery("#timesheet-container").empty();
  setBusy("Loading "+selected.name+" timesheet...");
- reloadData();
+ sel.prop("disabled",true);
+ reloadData().then(function(){sel.prop("disabled",false);},function(){sel.prop("disabled",false);});
 });
 }
 function timedStep(name,callback){
