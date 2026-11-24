@@ -72,6 +72,8 @@
             });
             var batches=[];
             for (var i=0;i<missing.length;i+=30) { batches.push(missing.slice(i,i+30)); }
+            // Always account for loaded entries, even if a linked Task is missing,
+            // inactive, or inaccessible. Such rows are display-only.
             return batches.reduce(function(chain,ids) {
                 return chain.then(function() {
                     var byId="(" + ids.map(function(id) {
@@ -93,7 +95,20 @@
             },Promise.resolve()).then(function() {
                 // Never silently discard entries when a referenced task was deleted
                 // or the user cannot access its metadata.
-                state.unresolvedTaskIds=missing.filter(function(id) { return !known[id]; });
+                state.unresolvedTaskIds=Object.keys(state.entries||{}).filter(function(id) {
+                    return !known[id] && (state.entries[id]||[]).length;
+                });
+                state.unresolvedTaskIds.forEach(function(id) {
+                    known[id]=true;
+                    rows.push({
+                        id:id,taskName:"Unresolved task (read-only)",
+                        projectCode:id?"Task ID "+id:"Missing task reference",
+                        projectDescription:"Linked Task record unavailable; entered hours are retained for display.",
+                        budgetedHours:0,assignedHours:0,remainingHours:0,loadedRemainingHours:0,
+                        projectType:"Historical entries",startDate:null,endDate:null,lastEntryDate:null,
+                        status:"Unavailable",allowOverbudget:false,allowOvertime:false,historicalOnly:true
+                    });
+                });
                 state.tasks=rows;
                 return rows;
             });
@@ -104,8 +119,10 @@
         var c = state.config, e = c.fields.entries, resource = state.context.selectedResourceId;
         var entries = {};
         if (!resource || !state.periods.length) { state.entries = entries; return Promise.resolve(entries); }
-        var oldest = state.periods[state.periods.length - 1].start.toDateString();
-        var newest = state.periods[0].end.toDateString();
+        // Fetch only the selected week. A multiweek query was unnecessarily large
+        // and could return an incomplete selection of the currently visible week.
+        var oldest = state.currentPeriod.start.toDateString();
+        var newest = state.currentPeriod.end.toDateString();
         var query = "{" + e.resource + ".TV.'" + resource + "'}AND{" + e.date + ".LTE.'" + newest + "'}AND{" + e.date + ".GTE.'" + oldest + "'}";
         var clist = [e.id,e.task,e.standardHours,e.standardNote,e.overtimeHours,e.internalComment,e.date,e.approved,e.payrollApproved,e.resource].join(".");
         return global.AxialQB.quickbase.doQuery({ dbid: alias(c.tableAliases.timeEntries), appToken:c.appToken, query:query, clist:clist, slist:e.task, eventName:"timesheet.entries.failed" }).then(function (result) {
