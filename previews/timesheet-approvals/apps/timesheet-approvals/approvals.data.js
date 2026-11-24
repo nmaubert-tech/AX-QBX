@@ -49,32 +49,22 @@
         if (!validDbid.test(appId)) {
             return Promise.reject(new Error("Cannot determine the Quickbase application ID for table alias resolution."));
         }
-        return global.AxialQB.quickbase.request({
-            url: "/db/" + encodeURIComponent(appId) + "?a=API_GetSchema&apptoken=" + encodeURIComponent(state.config.appToken || ""),
-            eventName: "timesheet.approvals.schema.failed",
-            errorMessage: "Unable to read Quickbase application schema"
-        }).then(function (response) {
-            var $xml = global.jQuery(response.data);
-            var errorCode = $xml.find("errcode").first().text();
-            if (errorCode !== "0") {
-                var errorText = $xml.find("errtext").first().text() || "Unknown Quickbase schema error";
-                throw new Error("Quickbase application schema lookup failed: " + errorText + " (code " + (errorCode || "missing") + ")");
-            }
-            var matches = [];
-            $xml.find("chdbids chdbid").each(function () {
-                if (String(global.jQuery(this).attr("name") || "").toLowerCase() === configured.toLowerCase()) {
-                    matches.push(String(global.jQuery(this).text() || "").trim());
-                }
+        // Shared client validates API_GetSchema and caches table aliases for the
+        // browser session. Avoid a redundant schema request on each visit.
+        return global.AxialQB.quickbase.getAppTables(appId, state.config.appToken).then(function (aliases) {
+            var matches = Object.keys(aliases).filter(function (name) {
+                return name.toLowerCase() === configured.toLowerCase();
             });
-            if (matches.length !== 1 || !validDbid.test(matches[0])) {
+            if (matches.length !== 1 || !validDbid.test(String(aliases[matches[0]] || ""))) {
                 throw new Error("Time Entries alias " + configured + " was not found uniquely in the OpsDB application schema.");
             }
+            var resolved = String(aliases[matches[0]]);
             if (!global.aliasMap) { global.aliasMap = {}; }
-            if (global.aliasMap[configured] && global.aliasMap[configured] !== matches[0]) {
+            if (global.aliasMap[configured] && global.aliasMap[configured] !== resolved) {
                 throw new Error("Conflicting Time Entries table mapping; refusing to use an unverified table.");
             }
-            global.aliasMap[configured] = matches[0];
-            return matches[0];
+            global.aliasMap[configured] = resolved;
+            return resolved;
         });
     }
 
